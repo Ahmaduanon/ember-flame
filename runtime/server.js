@@ -3974,7 +3974,7 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 			body: JSON.stringify({
 				model: c.model,
 				store: false,
-				max_output_tokens: 5e3,
+				max_output_tokens: 2400,
 				instructions: VISION_PROMPT,
 				input: [{
 					role: "user",
@@ -3999,7 +3999,12 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 		throw Object.assign(/* @__PURE__ */ new Error(error.name === "TimeoutError" ? "AI analysis timed out. No findings were saved." : "Could not reach the AI provider. Check the local setup or network; no findings were saved."), { status: 503 });
 	}
 	if (!response.ok) throw Object.assign(/* @__PURE__ */ new Error(`AI provider returned HTTP ${response.status}. Check the model, credentials and availability. No findings were saved.`), { status: 502 });
-	const result = await response.json();
+	let result;
+	try {
+		result = await response.json();
+	} catch {
+		throw Object.assign(/* @__PURE__ */ new Error("AI provider returned an unreadable response. No findings were saved."), { status: 502 });
+	}
 	let text;
 	if (c.provider === "ollama") text = result.message?.content;
 	else {
@@ -4018,6 +4023,143 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 		result: validateAssessment(raw, photos.length)
 	};
 }
+//#endregion
+//#region lib/usage.ts
+var usagePolicySchema = objectType({
+	cloudEnabled: booleanType(),
+	dailyLimit: numberType().int().min(0).max(100),
+	monthlyLimit: numberType().int().min(0).max(1e3),
+	maxPhotos: numberType().int().min(1).max(4),
+	cooldownSeconds: numberType().int().min(10).max(3600)
+}).strict();
+var DEFAULT_POLICY = {
+	cloudEnabled: false,
+	dailyLimit: 2,
+	monthlyLimit: 10,
+	maxPhotos: 2,
+	cooldownSeconds: 60
+};
+//#endregion
+//#region server/safety/usage.mjs
+function installUsage(db) {
+	db.exec(`CREATE TABLE IF NOT EXISTS ai_policy(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS ai_attempts(id TEXT PRIMARY KEY,at INTEGER NOT NULL,provider TEXT NOT NULL,status TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ai_attempts_time ON ai_attempts(at);`);
+	db.prepare("INSERT OR IGNORE INTO ai_policy VALUES(1,?)").run(JSON.stringify(DEFAULT_POLICY));
+	const policy = () => usagePolicySchema.parse(JSON.parse(db.prepare("SELECT payload FROM ai_policy WHERE id=1").get().payload));
+	function status(now = Date.now()) {
+		const day = new Date(now).toISOString().slice(0, 10), month = day.slice(0, 7);
+		const today = db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='openai' AND at>=?").get(Date.parse(day + "T00:00:00Z")).n;
+		const thisMonth = db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='openai' AND at>=?").get(Date.parse(month + "-01T00:00:00Z")).n;
+		return {
+			policy: policy(),
+			day,
+			month,
+			today,
+			thisMonth,
+			localAttempts: db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='ollama'").get().n,
+			recent: db.prepare("SELECT at,provider,status FROM ai_attempts ORDER BY at DESC LIMIT 12").all()
+		};
+	}
+	function reserve(provider, count, now = Date.now()) {
+		const s = status(now), p = s.policy;
+		const fail = (message) => {
+			throw Object.assign(new Error(message), { status: 429 });
+		};
+		if (count > p.maxPhotos) fail(`Select at most ${p.maxPhotos} photos per request in Usage settings.`);
+		if (provider === "openai") {
+			if (!p.cloudEnabled) fail("Cloud AI is paused. Enable it and choose request limits in Usage & settings.");
+			if (s.today >= p.dailyLimit || s.thisMonth >= p.monthlyLimit) fail("Cloud request allowance reached. Use manual review or a local model.");
+			const last = db.prepare("SELECT at FROM ai_attempts WHERE provider='openai' ORDER BY at DESC LIMIT 1").get();
+			if (last && now - last.at < p.cooldownSeconds * 1e3) fail("Please wait for the cloud-request cooldown before trying again.");
+		}
+		const id = crypto.randomUUID();
+		db.prepare("INSERT INTO ai_attempts VALUES(?,?,?,?)").run(id, now, provider, "started");
+		return id;
+	}
+	return {
+		status,
+		policy,
+		reserve,
+		finish: (id, state) => db.prepare("UPDATE ai_attempts SET status=? WHERE id=?").run(state, id),
+		save: (value) => {
+			const p = usagePolicySchema.parse(value);
+			db.prepare("UPDATE ai_policy SET payload=? WHERE id=1").run(JSON.stringify(p));
+			return status();
+		}
+	};
+}
+var layoutSchema = objectType({
+	width: numberType().min(1).max(30),
+	depth: numberType().min(1).max(30),
+	items: arrayType(objectType({
+		id: stringType().min(1).max(50),
+		type: enumType([
+			{
+				id: "stove",
+				label: "Cooker",
+				kind: "heat"
+			},
+			{
+				id: "heater",
+				label: "Heater",
+				kind: "heat"
+			},
+			{
+				id: "candle",
+				label: "Candle",
+				kind: "heat"
+			},
+			{
+				id: "socket",
+				label: "Socket",
+				kind: "electrical"
+			},
+			{
+				id: "strip",
+				label: "Power strip",
+				kind: "electrical"
+			},
+			{
+				id: "charger",
+				label: "Charger",
+				kind: "electrical"
+			},
+			{
+				id: "curtain",
+				label: "Curtain",
+				kind: "combustible"
+			},
+			{
+				id: "sofa",
+				label: "Furniture",
+				kind: "combustible"
+			},
+			{
+				id: "paper",
+				label: "Paper / fabric",
+				kind: "combustible"
+			},
+			{
+				id: "fuel",
+				label: "Fuel storage",
+				kind: "fuel"
+			},
+			{
+				id: "detector",
+				label: "Smoke alarm",
+				kind: "safety"
+			},
+			{
+				id: "exit",
+				label: "Exit",
+				kind: "exit"
+			}
+		].map((i) => i.id)),
+		x: numberType().min(0).max(30),
+		y: numberType().min(0).max(30)
+	}).strict()).max(80)
+}).strict().refine((r) => r.items.every((i) => i.x <= r.width && i.y <= r.depth) && new Set(r.items.map((i) => i.id)).size === r.items.length, "Markers must be unique and inside the room.");
 //#endregion
 //#region server/safety/routes.mjs
 var hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -4064,6 +4206,9 @@ function installSafety(db) {
     CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,deviceId TEXT NOT NULL,roomId TEXT NOT NULL,source TEXT NOT NULL,level TEXT NOT NULL,openedAt INTEGER NOT NULL,lastAt INTEGER NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS incidents_device_status ON incidents(deviceId,status);
   `);
+	if (!db.prepare("PRAGMA table_info(assessments)").all().some((c) => c.name === "requestHash")) db.exec("ALTER TABLE assessments ADD COLUMN requestHash TEXT");
+	db.exec("CREATE TABLE IF NOT EXISTS room_layouts(roomId TEXT PRIMARY KEY,updatedAt INTEGER NOT NULL,payload TEXT NOT NULL)");
+	const usage = installUsage(db);
 	let analyzing = false;
 	const room = (id) => {
 		const r = db.prepare("SELECT * FROM safety_rooms WHERE id=?").get(id);
@@ -4233,24 +4378,80 @@ function installSafety(db) {
 				});
 			}
 		}
+		if (path === "ai-usage") {
+			if (req.method === "GET") return send(200, usage.status());
+			if (req.method === "PUT") return send(200, usage.save(parse(usagePolicySchema, await body(req, 2e3))));
+		}
+		if (path === "layouts") {
+			if (req.method === "GET") {
+				const id = url.searchParams.get("roomId");
+				requireRoom(id);
+				const row = db.prepare("SELECT * FROM room_layouts WHERE roomId=?").get(id);
+				return send(200, row ? {
+					roomId: id,
+					updatedAt: row.updatedAt,
+					layout: JSON.parse(row.payload)
+				} : null);
+			}
+			if (req.method === "PUT") {
+				const d = parse(objectType({
+					roomId: stringType().uuid(),
+					layout: layoutSchema
+				}).strict(), await body(req, 2e4));
+				requireRoom(d.roomId);
+				db.prepare("INSERT INTO room_layouts VALUES(?,?,?) ON CONFLICT(roomId) DO UPDATE SET updatedAt=excluded.updatedAt,payload=excluded.payload").run(d.roomId, Date.now(), JSON.stringify(d.layout));
+				return send(200, { ok: true });
+			}
+		}
 		if (path === "ai-status" && req.method === "GET") return send(200, await aiStatus());
 		if (path === "analyze" && req.method === "POST") {
 			const data = parse(objectType({
 				roomId: stringType().uuid(),
-				cloudConsent: booleanType().default(false)
+				cloudConsent: booleanType().default(false),
+				photoIds: arrayType(stringType().uuid()).min(1).max(4).optional()
 			}).strict(), await body(req, 2e3));
 			const target = requireRoom(data.roomId);
-			const photos = db.prepare("SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt").all(data.roomId);
+			const allPhotos = db.prepare("SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt").all(data.roomId);
+			const photos = data.photoIds ? data.photoIds.map((id) => allPhotos.find((p) => p.id === id)) : allPhotos;
+			if (photos.some((p) => !p) || new Set(data.photoIds || []).size !== (data.photoIds || []).length) return send(400, { error: "Select unique photos from this room." });
 			if (!photos.length) return send(400, { error: "Add room photos before requesting analysis." });
 			if (incidents().some((i) => i.source === "live" && i.level === "alarm" && i.status !== "closed")) return send(409, { error: "An unresolved device alarm is recorded. Prioritize evacuation and emergency response; do not continue a photo survey during an incident." });
 			if (analyzing) return send(409, { error: "An AI assessment is already running. Wait for it to finish." });
+			const config = configuration();
+			const requestHash = hash(JSON.stringify({
+				provider: config.provider,
+				model: config.model,
+				prompt: VISION_PROMPT,
+				room: {
+					name: target.name,
+					kind: target.kind,
+					notes: target.notes,
+					adjacent: target.adjacent
+				},
+				photos: photos.map((p) => ({
+					id: p.id,
+					label: p.label,
+					dataUrl: p.dataUrl
+				}))
+			}));
+			const cached = db.prepare("SELECT id,provider,model,result FROM assessments WHERE requestHash=? ORDER BY createdAt DESC LIMIT 1").get(requestHash);
+			if (cached) return send(200, {
+				...cached,
+				result: JSON.parse(cached.result),
+				cached: true
+			});
+			if (config.provider === "disabled") return send(503, { error: "AI is disabled. Use manual observations or configure a model." });
+			if (config.provider === "openai" && !config.key) return send(503, { error: "The OpenAI API key is not configured." });
+			if (config.provider === "openai" && !data.cloudConsent) return send(400, { error: "Confirm sending the selected photos and room notes to OpenAI." });
 			analyzing = true;
+			let attempt;
 			try {
+				attempt = usage.reserve(config.provider, photos.length);
 				const analysis = await analyzePhotos(target, photos, { consent: data.cloudConsent });
 				const id = crypto.randomUUID(), now = Date.now();
 				db.exec("BEGIN");
 				try {
-					db.prepare("INSERT INTO assessments VALUES(?,?,?,?,?,?)").run(id, data.roomId, now, analysis.provider, analysis.model, JSON.stringify(analysis.result));
+					db.prepare("INSERT INTO assessments(id,roomId,createdAt,provider,model,result,requestHash) VALUES(?,?,?,?,?,?,?)").run(id, data.roomId, now, analysis.provider, analysis.model, JSON.stringify(analysis.result), requestHash);
 					for (const f of analysis.result.findings) {
 						const findingId = crypto.randomUUID();
 						const payload = {
@@ -4270,10 +4471,15 @@ function installSafety(db) {
 					db.exec("ROLLBACK");
 					throw e;
 				}
+				usage.finish(attempt, "completed");
 				return send(201, {
 					id,
-					...analysis
+					...analysis,
+					cached: false
 				});
+			} catch (error) {
+				if (attempt) usage.finish(attempt, "failed");
+				throw error;
 			} finally {
 				analyzing = false;
 			}

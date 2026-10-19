@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { sensorSchema } from '../../lib/validation.ts';
 import { roomSchema, photoSchema, findingSchema, reviewSchema, deviceSchema, CATEGORIES } from '../../lib/safety.ts';
 import { evaluateDetection, canCloseIncident, RULE_VERSION } from '../../lib/detection.ts';
-import { analyzePhotos, aiStatus } from './vision.mjs';
+import { analyzePhotos, aiStatus, configuration, VISION_PROMPT } from './vision.mjs';
+import { installUsage } from './usage.mjs';
+import { layoutSchema } from '../../lib/layout.ts';
+import { usagePolicySchema } from '../../lib/usage.ts';
 
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const levels={watch:1,warning:2,alarm:3};
@@ -26,6 +29,9 @@ export function installSafety(db){
     CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,deviceId TEXT NOT NULL,roomId TEXT NOT NULL,source TEXT NOT NULL,level TEXT NOT NULL,openedAt INTEGER NOT NULL,lastAt INTEGER NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS incidents_device_status ON incidents(deviceId,status);
   `);
+  if(!db.prepare('PRAGMA table_info(assessments)').all().some(c=>c.name==='requestHash'))db.exec('ALTER TABLE assessments ADD COLUMN requestHash TEXT');
+  db.exec('CREATE TABLE IF NOT EXISTS room_layouts(roomId TEXT PRIMARY KEY,updatedAt INTEGER NOT NULL,payload TEXT NOT NULL)');
+  const usage=installUsage(db);
   let analyzing=false;
   const room=id=>{const r=db.prepare('SELECT * FROM safety_rooms WHERE id=?').get(id);return r?{id:r.id,createdAt:r.createdAt,...JSON.parse(r.payload)}:null;};
   const requireRoom=id=>{const r=room(id);if(!r)throw Object.assign(new Error('Room not found.'),{status:404});return r;};
@@ -84,24 +90,41 @@ export function installSafety(db){
       }
       if(req.method==='DELETE'){const id=url.searchParams.get('id');if(!id)return send(400,{error:'Missing photo ID.'});db.prepare('DELETE FROM survey_photos WHERE id=?').run(id);return send(200,{ok:true,note:'Photo deleted. Previous findings retain their text and identify the deleted evidence by ID.'});}
     }
+    if(path==='ai-usage'){
+      if(req.method==='GET')return send(200,usage.status());
+      if(req.method==='PUT')return send(200,usage.save(parse(usagePolicySchema,await body(req,2000))));
+    }
+    if(path==='layouts'){
+      if(req.method==='GET'){const id=url.searchParams.get('roomId');requireRoom(id);const row=db.prepare('SELECT * FROM room_layouts WHERE roomId=?').get(id);return send(200,row?{roomId:id,updatedAt:row.updatedAt,layout:JSON.parse(row.payload)}:null);}
+      if(req.method==='PUT'){const d=parse(z.object({roomId:z.string().uuid(),layout:layoutSchema}).strict(),await body(req,20000));requireRoom(d.roomId);db.prepare('INSERT INTO room_layouts VALUES(?,?,?) ON CONFLICT(roomId) DO UPDATE SET updatedAt=excluded.updatedAt,payload=excluded.payload').run(d.roomId,Date.now(),JSON.stringify(d.layout));return send(200,{ok:true});}
+    }
     if(path==='ai-status'&&req.method==='GET')return send(200,await aiStatus());
     if(path==='analyze'&&req.method==='POST'){
-      const data=parse(z.object({roomId:z.string().uuid(),cloudConsent:z.boolean().default(false)}).strict(),await body(req,2000));
-      const target=requireRoom(data.roomId);const photos=db.prepare('SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt').all(data.roomId);
+      const data=parse(z.object({roomId:z.string().uuid(),cloudConsent:z.boolean().default(false),photoIds:z.array(z.string().uuid()).min(1).max(4).optional()}).strict(),await body(req,2000));
+      const target=requireRoom(data.roomId);const allPhotos=db.prepare('SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt').all(data.roomId);const photos=data.photoIds?data.photoIds.map(id=>allPhotos.find(p=>p.id===id)):allPhotos;
+      if(photos.some(p=>!p)||new Set(data.photoIds||[]).size!==(data.photoIds||[]).length)return send(400,{error:'Select unique photos from this room.'});
       if(!photos.length)return send(400,{error:'Add room photos before requesting analysis.'});
       if(incidents().some(i=>i.source==='live'&&i.level==='alarm'&&i.status!=='closed'))return send(409,{error:'An unresolved device alarm is recorded. Prioritize evacuation and emergency response; do not continue a photo survey during an incident.'});
       if(analyzing)return send(409,{error:'An AI assessment is already running. Wait for it to finish.'});
-      analyzing=true;
+      const config=configuration();
+      const requestHash=hash(JSON.stringify({provider:config.provider,model:config.model,prompt:VISION_PROMPT,room:{name:target.name,kind:target.kind,notes:target.notes,adjacent:target.adjacent},photos:photos.map(p=>({id:p.id,label:p.label,dataUrl:p.dataUrl}))}));
+      const cached=db.prepare('SELECT id,provider,model,result FROM assessments WHERE requestHash=? ORDER BY createdAt DESC LIMIT 1').get(requestHash);
+      if(cached)return send(200,{...cached,result:JSON.parse(cached.result),cached:true});
+      if(config.provider==='disabled')return send(503,{error:'AI is disabled. Use manual observations or configure a model.'});
+      if(config.provider==='openai'&&!config.key)return send(503,{error:'The OpenAI API key is not configured.'});
+      if(config.provider==='openai'&&!data.cloudConsent)return send(400,{error:'Confirm sending the selected photos and room notes to OpenAI.'});
+      analyzing=true;let attempt;
       try{
+        attempt=usage.reserve(config.provider,photos.length);
         const analysis=await analyzePhotos(target,photos,{consent:data.cloudConsent});const id=crypto.randomUUID(),now=Date.now();
         db.exec('BEGIN');
         try{
-          db.prepare('INSERT INTO assessments VALUES(?,?,?,?,?,?)').run(id,data.roomId,now,analysis.provider,analysis.model,JSON.stringify(analysis.result));
+          db.prepare('INSERT INTO assessments(id,roomId,createdAt,provider,model,result,requestHash) VALUES(?,?,?,?,?,?,?)').run(id,data.roomId,now,analysis.provider,analysis.model,JSON.stringify(analysis.result),requestHash);
           for(const f of analysis.result.findings){const findingId=crypto.randomUUID();const payload={...f,photoId:photos[f.photo_index].id,action:CATEGORIES[f.category].action,source:'ai',assessmentId:id,status:'unreviewed',reviewNote:''};delete payload.photo_index;db.prepare('INSERT INTO findings VALUES(?,?,?,?)').run(findingId,data.roomId,now,JSON.stringify(payload));}
           db.exec('COMMIT');
         }catch(e){db.exec('ROLLBACK');throw e;}
-        return send(201,{id,...analysis});
-      }finally{analyzing=false;}
+        usage.finish(attempt,'completed');return send(201,{id,...analysis,cached:false});
+      }catch(error){if(attempt)usage.finish(attempt,'failed');throw error;}finally{analyzing=false;}
     }
     if(path==='findings'){
       if(req.method==='POST'){

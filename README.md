@@ -1,4 +1,4 @@
-# Ember 0.2 — Building Safety & Combustion Lab
+# Ember Studio 0.4 — Building Intelligence
 
 A portable local project combining room-photo surveys, prototype sensor monitoring, incident review and the gravity/flame laboratory. No GitHub account or deployment is needed. This is a research prototype; keep approved smoke/CO alarms working independently.
 
@@ -7,7 +7,7 @@ A portable local project combining room-photo surveys, prototype sensor monitori
 1. Extract the ZIP completely on a desktop computer.
 2. Install Node.js 22.13 or newer from https://nodejs.org/ if needed.
 3. Windows: open `START-LAB.cmd`. macOS: open `Start-Lab.command` (or run `sh start-lab.sh`). Linux: run `sh start-lab.sh`.
-4. Open http://localhost:3000. The prebuilt app needs no npm installation or build.
+4. Open http://localhost:3000 and select **Open workspace**. The prebuilt app needs no npm installation or build.
 
 The app runs on a computer, not directly inside iPhone Files. Phone photos can be transferred to the computer for upload. Browser camera access depends on browser/device support.
 
@@ -20,6 +20,10 @@ The app runs on a computer, not directly inside iPhone Files. Phone photos can b
 - Review particle/CO/temperature changes, independent alarm contacts, missing channels, faults and offline states. Optional browser notifications work while Ember stays open.
 - Exercise labeled demo scenarios. Demo/import readings do not affect real-device monitoring.
 - Review incidents with sensor evidence and snapshots of earlier room observations, then export JSON records. Earlier observations do not establish fire cause or blame.
+
+The redesigned landing page takes inspiration from the supplied navy architecture reference. See `docs/COMPARISON-AND-RELEASE.md` for the comparison with Claude’s v0.3 and the combined decisions.
+
+New: saved room sketches, an interactive synthetic sensor playground, selected photo analysis, cached AI results, persistent usage controls, and a FormSubmit enquiry form addressed to salisuashraf46@gmail.com. Cloud requests are paused by default; enable them in **Usage & settings** only after configuring a provider.
 
 Start with **Buildings & alerts → Add a room**. See `docs/SMOKE-NODE.md` for the ESP32/PMS5003 starter and `docs/SAFETY-MODEL.md` for implemented rules. A full house survey consists of room records and photos; no automatic 3D reconstruction or code-compliance certification is implemented.
 
@@ -108,4 +112,4 @@ This is a single-user local app. It listens only on 127.0.0.1, validates Host/Or
 - **Blank oxygen/probe field:** those sensors are not implemented by the starter; no reading is invented.
 - **Slow or missing data:** inspect stale status, rejected packet count and JSON format.
 
-Verification completed: TypeScript checks, production builds, 29 passing automated model, detection, vision-adapter and local-server integration tests. No visual browser automation or physical hardware validation was available in the build environment.
+Verification completed: TypeScript checks, production builds, 34 passing automated model, detection, vision-adapter and local-server integration tests. No visual browser automation or physical hardware validation was available in the build environment.

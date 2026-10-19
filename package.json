@@ -1,9 +1,9 @@
 {
   "name": "ember-gravity-lab",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Local building photo surveys, prototype sensor alerts, incident review and a gravity flame laboratory.",
+  "description": "Ember Studio: local building surveys, room planning, sensor events and a virtual flame laboratory.",
   "engines": {
     "node": ">=22.13.0"
   },

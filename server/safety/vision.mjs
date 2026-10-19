@@ -43,10 +43,10 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
   let response;
   try{
     if(c.provider==='ollama')response=await fetcher(c.base+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(120000),body:JSON.stringify({model:c.model,stream:false,format:assessmentJsonSchema,options:{temperature:0,num_ctx:8192},messages:[{role:'system',content:VISION_PROMPT},{role:'user',content:context,images:photos.map(p=>p.dataUrl.split(',')[1])}]})});
-    else response=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.key},signal:AbortSignal.timeout(120000),body:JSON.stringify({model:c.model,store:false,max_output_tokens:5000,instructions:VISION_PROMPT,input:[{role:'user',content:[{type:'input_text',text:context},...photos.map(p=>({type:'input_image',image_url:p.dataUrl,detail:'auto'}))]}],text:{format:{type:'json_schema',name:'room_hazard_survey',strict:true,schema:assessmentJsonSchema}}})});
+    else response=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.key},signal:AbortSignal.timeout(120000),body:JSON.stringify({model:c.model,store:false,max_output_tokens:2400,instructions:VISION_PROMPT,input:[{role:'user',content:[{type:'input_text',text:context},...photos.map(p=>({type:'input_image',image_url:p.dataUrl,detail:'auto'}))]}],text:{format:{type:'json_schema',name:'room_hazard_survey',strict:true,schema:assessmentJsonSchema}}})});
   }catch(error){throw Object.assign(new Error(error.name==='TimeoutError'?'AI analysis timed out. No findings were saved.':'Could not reach the AI provider. Check the local setup or network; no findings were saved.'),{status:503});}
   if(!response.ok)throw Object.assign(new Error(`AI provider returned HTTP ${response.status}. Check the model, credentials and availability. No findings were saved.`),{status:502});
-  const result=await response.json();let text;
+  let result;try{result=await response.json();}catch{throw Object.assign(new Error('AI provider returned an unreadable response. No findings were saved.'),{status:502});}let text;
   if(c.provider==='ollama')text=result.message?.content;
   else{
     if(result.status==='incomplete')throw Object.assign(new Error('AI output was incomplete; no findings were saved.'),{status:502});

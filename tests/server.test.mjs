@@ -80,3 +80,14 @@ test('a browser USB sample can trigger a paired device and setup downloads are p
   const r=await request('/api/safety/samples','POST',{source:'usb',sample:{device_id:'usb-node',co_alarm:true}});assert.equal((await r.json()).state,'alarm');
   for(const path of ['AI-SETUP.md','SMOKE-NODE.md','ember_smoke_node.ino','monitor_gateway.py'])assert.equal((await request('/downloads/'+path)).status,200);
 });
+
+test('manual layouts persist and the usage policy API validates hard request limits',async()=>{
+  const room=await createRoom('Planner room');const layout={width:6,depth:4,items:[{id:'marker-1',type:'exit',x:5,y:3}]};
+  assert.equal((await request('/api/safety/layouts','PUT',{roomId:room.id,layout})).status,200);
+  assert.deepEqual((await(await request('/api/safety/layouts?roomId='+room.id)).json()).layout,layout);
+  assert.equal((await request('/api/safety/layouts','PUT',{roomId:room.id,layout:{...layout,items:[{id:'bad',type:'exit',x:7,y:3}]}})).status,400);
+  const initial=await(await request('/api/safety/ai-usage')).json();assert.equal(initial.policy.cloudEnabled,false);
+  assert.equal((await request('/api/safety/ai-usage','PUT',{...initial.policy,dailyLimit:-1})).status,400);
+  const policy={...initial.policy,dailyLimit:0,monthlyLimit:0};assert.equal((await request('/api/safety/ai-usage','PUT',policy)).status,200);
+  await stop();await start();assert.deepEqual((await(await request('/api/safety/ai-usage')).json()).policy,policy);assert.deepEqual((await(await request('/api/safety/layouts?roomId='+room.id)).json()).layout,layout);
+});

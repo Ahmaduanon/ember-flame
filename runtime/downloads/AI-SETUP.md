@@ -1,6 +1,6 @@
 # Room-photo analysis
 
-Ember 0.2 integrates an existing vision model. It does not include a newly trained or validated fire-risk model. You can create buildings, save photos, record observations manually and use the sensor/demo workflows before configuring AI.
+Ember 0.4 integrates an existing vision model. It does not include a newly trained or validated fire-risk model. You can create buildings, save photos, record observations manually and use the sensor/demo workflows before configuring AI.
 
 ## Local model — default
 
@@ -20,6 +20,12 @@ EMBER_OLLAMA_MODEL=gemma3:4b
 
 Only a loopback HTTP origin is accepted for Ollama. Do not expose it or Ember to the public internet. If the configured model is absent, unreachable, times out or returns an invalid response, the app reports that failure and saves no invented assessment. Manual observations remain available.
 
+## Request controls
+
+Select photos using the checkbox below each thumbnail. The default is at most two per analysis; change this in **Usage & settings**. Unchanged photographs, room context, model and prompt reuse the saved result.
+
+Cloud AI is paused initially. Usage & settings lets you enable it and set daily/monthly attempt limits and a cooldown. Defaults are 2 attempts/day, 10/month and 60 seconds. Failures count; limits survive restarts and reset on UTC boundaries. Local model requests are not charged by a cloud API. These are app request limits, not ChatGPT credit controls or exact bill caps.
+
 ## Optional cloud model
 
 The OpenAI alternative requires your own API access and may incur charges. Set these locally in `.env`, then restart:
@@ -29,6 +35,8 @@ EMBER_AI_PROVIDER=openai
 OPENAI_API_KEY=replace_locally_with_your_api_key
 OPENAI_MODEL=gpt-6-luna
 ```
+
+Enable cloud calls in **Usage & settings** after choosing your request allowance.
 
 Never share your actual `.env` file or paste a key into the app, a chat or source code. The key stays on the server. You must explicitly consent in the UI for each analysis before room photos, photo labels and room context are sent to OpenAI. Choose a currently available model with image input and structured-output support; availability depends on your API account. A key being configured does not establish that the account/model is accessible.
 
