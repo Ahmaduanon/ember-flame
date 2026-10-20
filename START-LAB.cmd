@@ -6,5 +6,12 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+if not exist runtime\server.js (
+  echo First run: installing and building. This needs internet and takes about a minute.
+  call npm install
+  if errorlevel 1 ( pause & exit /b 1 )
+  call npm run build
+  if errorlevel 1 ( pause & exit /b 1 )
+)
 node runtime/server.js
 pause

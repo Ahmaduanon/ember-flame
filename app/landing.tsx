@@ -1,19 +1,97 @@
-import { ArrowDown, ArrowRight, Building2, Camera, Check, ChevronRight, Flame, Layers3, Menu, Orbit, Radio, ShieldCheck, X } from 'lucide-react';
-import { useState } from 'react';
-import Architecture from './architecture';
-export const CONTACT_ENDPOINT='https://formsubmit.co/salisuashraf46@gmail.com';
-export default function Landing(){
-  const [menu,setMenu]=useState(false);
-  return <div className="landing"><header className="site-header"><a href="#home" className="site-brand" aria-label="Ember home"><span><Flame size={26}/></span>EMBER<span className="brand-sub">BUILDING INTELLIGENCE</span></a><nav className={menu?'site-nav open':'site-nav'} aria-label="Main navigation"><a href="#platform" onClick={()=>setMenu(false)}>The platform</a><a href="#approach" onClick={()=>setMenu(false)}>Our approach</a><a href="#contact" onClick={()=>setMenu(false)}>Get in touch</a><a href="#app/guard" className="site-button small">Open workspace <ArrowRight size={15}/></a></nav><button className="site-menu" aria-label={menu?'Close menu':'Open menu'} aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></header>
-    <section className="site-hero" id="home"><div className="hero-architecture"><Architecture/></div><div className="hero-shade"/><div className="hero-copy"><div className="site-eyebrow"><i/> BUILT FOR CURIOSITY. DESIGNED FOR AWARENESS.</div><h1>Know your space.<br/>Understand<br/><em>the risk.</em></h1><p>Connect room observations, sensor signals and combustion research in one considered workspace.</p><div className="hero-actions"><a className="site-button" href="#app/guard">Explore your workspace <ArrowRight size={17}/></a><a className="hero-text-link" href="#platform">Discover Ember <ArrowDown size={16}/></a></div><div className="hero-footnote"><ShieldCheck size={16}/><span>Local first. Human reviewed. Research prototype.</span></div></div><div className="hero-building-label"><span className="architect-dot"/><div>BUILDING AWARENESS<small>Illustrative architecture / Ember Studio</small></div></div></section>
-    <section className="platform-section" id="platform"><div className="module-grid">
-      <a href="#app/guard" className="module-card"><div className="module-top"><span>01 / OBSERVE</span><Camera size={23}/></div><h2>A clearer view<br/>of every room.</h2><p>Collect photographs, review possible concerns and keep the evidence together.</p><div className="module-bottom">Building surveys <ArrowRight size={18}/></div></a>
-      <a href="#app/layout" className="module-card featured"><div className="module-top"><span>02 / CONNECT</span><Building2 size={23}/></div><h2>Give every signal<br/>a place.</h2><p>Map a space, pair a sensor and review events alongside earlier observations.</p><div className="module-bottom">Room planning & monitoring <ArrowRight size={18}/></div></a>
-      <a href="#app/lab" className="module-card"><div className="module-top"><span>03 / EXPLORE</span><Orbit size={25}/></div><h2>A small flame.<br/>Bigger questions.</h2><p>Experiment with gravity, oxygen and fuel in an interactive virtual laboratory.</p><div className="module-bottom">Gravity & combustion lab <ArrowRight size={18}/></div></a>
-    </div></section>
-    <section className="site-overview" id="approach"><div className="overview-copy"><div className="site-eyebrow blue">A MORE CONNECTED PERSPECTIVE</div><h2>From the room<br/>to the whole picture.</h2><p>Good decisions start with clear observations. Ember gives you a way to organise what you see, understand what a sensor reports and record what needs attention.</p><div className="overview-points"><div><Camera size={20}/><span><b>See and document</b><small>Photographs and manual notes with clear sources.</small></span></div><div><Radio size={20}/><span><b>Connect and observe</b><small>Paired locations, sensor history and visible gaps.</small></span></div><div><Layers3 size={20}/><span><b>Review with context</b><small>Human decisions linked to the original evidence.</small></span></div></div><a href="#app/guard" className="site-link">Start with your first room <ArrowRight size={18}/></a></div><div className="overview-visual"><div className="example-title"><span>EXAMPLE WORKSPACE</span><span className="example-label">Illustrative</span></div><div className="blueprint"><svg viewBox="0 0 480 300" aria-label="Illustrative floor plan"><defs><pattern id="plan-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" stroke="#9cb6d4" strokeOpacity=".25" fill="none"/></pattern></defs><path d="M0 0H480V300H0Z" fill="url(#plan-grid)"/><path d="M70 48H410V254H70ZM70 153H211M267 153H410M239 48V125M239 184V254" stroke="#6286ab" strokeWidth="4" fill="none"/><path d="M211 153V125A28 28 0 0 1 239 153M239 184H267A28 28 0 0 1 239 212" stroke="#91abc5" fill="none"/><rect x="87" y="65" width="132" height="24" fill="#d8e4ef"/><rect x="288" y="70" width="81" height="54" rx="3" fill="#d8e4ef"/><rect x="94" y="193" width="95" height="36" rx="3" fill="#d8e4ef"/><circle cx="148" cy="111" r="7" fill="#2379ca"/><circle cx="148" cy="111" r="17" fill="none" stroke="#2379ca" strokeOpacity=".3"/><circle cx="324" cy="208" r="7" fill="#2379ca"/><path d="M148 111L324 208" stroke="#2379ca" strokeDasharray="4 6" strokeOpacity=".4"/></svg><div className="plan-callout"><Radio size={16}/><span>Room-linked observations<small>Every device has an assigned location.</small></span></div></div><div className="example-note"><Check size={17}/><span>Evidence first. Review always.<small>A photo assessment does not establish fire cause.</small></span></div></div></section>
-    <section className="site-lab-band"><div><span className="site-eyebrow">THE FLAME LABORATORY</span><h2>What changes when<br/>gravity lets go?</h2><p>Earth, Moon, Mars and microgravity. Adjust the conditions, compare runs and explore a simplified combustion model.</p><a href="#app/lab" className="site-button">Enter the laboratory <ArrowRight size={17}/></a></div><div className="orbit-comparison"><div className="orbit-earth"><Flame size={55}/><span>EARTH</span><small>Buoyancy shaped</small></div><div className="orbit-connector"><ArrowRight size={25}/></div><div className="orbit-micro"><span className="micro-flame"/><span>MICROGRAVITY</span><small>Diffusion dominated</small></div><p>Schematic forms from an educational model.</p></div></section>
-    <section className="site-contact" id="contact"><div className="contact-copy"><span className="site-eyebrow blue">LET’S BUILD ON THIS</span><h2>Better questions.<br/>Useful conversations.</h2><p>Interested in the project, a research collaboration or a future pilot? Send Ashraf a note.</p><a href="mailto:salisuashraf46@gmail.com">salisuashraf46@gmail.com <ChevronRight size={17}/></a><div className="contact-boundary"><ShieldCheck size={22}/><p>Ember is a research prototype. Keep approved smoke and CO alarms working independently. Early detection, AI accuracy and hardware performance still need validation.</p></div></div><form className="contact-form" action={CONTACT_ENDPOINT} method="POST" target="_blank" rel="noopener noreferrer"><input type="hidden" name="_subject" value="Ember project — new enquiry"/><input type="hidden" name="_template" value="table"/><input type="text" name="_honey" className="honeypot" tabIndex={-1} autoComplete="off" aria-hidden="true"/><h3>Start a conversation</h3><div className="contact-row"><label>Your name<input name="name" autoComplete="name" required maxLength={100} placeholder="Full name"/></label><label>Email address<input type="email" name="email" autoComplete="email" required maxLength={200} placeholder="you@example.com"/></label></div><label>I’m interested in<select name="interest" defaultValue="Research collaboration"><option>Research collaboration</option><option>Future pilot / updates</option><option>Product feedback</option><option>General enquiry</option></select></label><label>Your message<textarea name="message" required minLength={10} maxLength={3000} rows={4} placeholder="Tell us what you have in mind…"/></label><label className="contact-consent"><input type="checkbox" name="consent" value="Agreed to FormSubmit delivery" required/><span>I agree to send these details through FormSubmit to Ashraf.</span></label><button className="site-button" type="submit">Send enquiry <ArrowRight size={17}/></button><small>FormSubmit opens in a new tab to complete delivery. Please don’t include private room photos or device credentials.</small></form></section>
-    <footer className="site-footer"><a className="site-brand" href="#home"><Flame size={23}/>EMBER</a><span>Awareness begins with observation.</span><a href="#app/usage">AI usage controls <ArrowRight size={14}/></a><small>EMBER STUDIO / 0.4</small></footer>
+import { useEffect, useState, type FormEvent } from 'react';
+
+const WHAT = [
+  { name: 'Hazard scanner', text: 'Map a room and see risky pairings, like a curtain beside a socket or wood beside a stove. You get a risk score and a fix for each one.', status: 'Working in the app' },
+  { name: 'Building survey and alerts', text: 'Add buildings and rooms, attach photos and record findings. An optional vision model can suggest findings, and a person confirms or dismisses each one. Sensor alerts become incident records you can review and export.', status: 'Working in the app' },
+  { name: 'Guardian sensor unit', text: 'Watches particles, heat and flame, and CO if you add a sensor. When two kinds of evidence agree it sounds an alarm and can release a short burst of suppressant.', status: 'Software and firmware done, hardware testing next' },
+  { name: 'Flaming Freefall lab', text: 'An educational model of how a flame behaves on Earth, the Moon, Mars and in microgravity. Save runs, compare them, and set them beside live sensor readings.', status: 'Working, built for NASA Space Apps' },
+];
+const STAGES = [
+  ['Watch', 'One kind of evidence is above its normal level for 3 seconds.'],
+  ['Warning', 'Two kinds agree for 5 seconds. The alarm sounds.'],
+  ['Release', 'The unit is armed and the pattern holds for 8 seconds. It releases for 3 seconds, at most twice.'],
+  ['Cooldown', 'It watches for 60 seconds in case the fire restarts.'],
+];
+const LIMITS = [
+  'Ember is a prototype, not a certified safety device. Keep certified smoke alarms and extinguishers.',
+  'Photos cannot show hidden wiring. Findings are prompts for a person to check, not verdicts.',
+  'Detection thresholds are bench values that have not been validated yet.',
+  'Powder suppressants irritate lungs, so Guardian belongs away from people, with a manual override.',
+];
+
+export default function Landing() {
+  const [f, setF] = useState({ name: '', email: '', role: 'home', note: '', website: '' });
+  const [st, setSt] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [msg, setMsg] = useState('');
+  const [pub, setPub] = useState(false);
+  useEffect(() => { fetch('/api/health').then(r => r.json()).then(j => setPub(j.mode === 'public')).catch(() => {}); }, []);
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setSt('sending');
+    try {
+      const r = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not save your sign-up. Try again.');
+      setMsg(j.already ? 'You are already on the list. We will email you.' : 'You are on the list. We will email you when Guardian is ready to test.'); setSt('done');
+    } catch (err: any) { setMsg(err.message); setSt('error'); }
+  }
+  return <div className="lp">
+    <header className="lp-top"><b>Ember</b>
+      <nav><a className="lp-navlink" href="#what">What it does</a><a className="lp-navlink" href="#how">How it works</a><a className="lp-navlink" href="#waitlist">Waitlist</a>
+        {!pub && <><a href="#login">Sign in</a><a className="lp-btn lp-btn-sm" href="#signup">Create account</a></>}</nav></header>
+    <section className="lp-hero">
+      <div>
+        <span className="lp-badge">Built for the NASA Space Apps Challenge</span>
+        <h1>Catch a fire before it is a fire.</h1>
+        <p className="lp-lead">Ember checks a room for fire hazards, watches for the quiet signs of smouldering, and can put it out early. It also lets you study how flames behave when gravity changes.</p>
+        <div className="lp-cta"><a className="lp-btn" href="#waitlist">Join the waitlist</a>{!pub && <a className="lp-btn alt" href="#signup">Create an account</a>}</div>
+        {!pub && <p className="lp-small">Already have an account? <a href="#login">Sign in</a></p>}
+      </div>
+      <figure>
+        <svg viewBox="0 0 520 300" role="img" aria-label="Illustration: a heat curve rising over time. Guardian reacts early, a typical smoke alarm sounds later, flames spread last.">
+          <line x1="20" y1="260" x2="500" y2="260" stroke="#10202b" strokeWidth="2"/>
+          <path className="lp-curve" d="M20 250 C120 248 190 244 240 226 C300 202 350 150 400 70 L480 30" fill="none" stroke="#e8452c" strokeWidth="5" strokeLinecap="round"/>
+          <g fontSize="14" fill="#10202b">
+            <line x1="235" y1="40" x2="235" y2="260" stroke="#1f8a70" strokeWidth="2" strokeDasharray="5 5"/><circle cx="235" cy="228" r="7" fill="#1f8a70"/>
+            <text x="225" y="62" fontWeight="700" textAnchor="end">Guardian sees the pattern</text>
+            <line x1="345" y1="100" x2="345" y2="260" stroke="#10202b" strokeWidth="2" strokeDasharray="5 5"/><circle cx="345" cy="160" r="7" fill="#10202b"/>
+            <text x="355" y="242">Typical smoke alarm</text>
+            <text x="388" y="22" fill="#e8452c" fontWeight="700">Flames spread</text>
+            <text x="20" y="284">Time</text>
+          </g>
+        </svg>
+        <figcaption>An illustration of the idea, not measured data.</figcaption>
+      </figure>
+    </section>
+    <section className="lp-sec" id="what"><h2>What Ember does</h2>
+      <div className="lp-rows">{WHAT.map(b => <div key={b.name} className="lp-row"><h3>{b.name}</h3><p>{b.text}</p><span>{b.status}</span></div>)}</div></section>
+    <section className="lp-sec" id="how"><h2>How Guardian decides</h2>
+      <p className="lp-lead">One noisy sensor never triggers a release. Guardian compares each reading with its own slow baseline and needs independent evidence.</p>
+      <ol className="lp-stages">{STAGES.map(([n, t]) => <li key={n}><b>{n}</b><p>{t}</p></li>)}</ol></section>
+    <section className="lp-sec"><h2>What Ember is not</h2>
+      <ul className="lp-limits">{LIMITS.map(l => <li key={l}>{l}</li>)}</ul></section>
+    <section className="lp-sec lp-wait" id="waitlist">
+      <div className="lp-start">
+        <div><h2>Get early access</h2>
+          <p className="lp-lead">Tell us who you are and we will email you when Guardian is ready for testers.</p>
+          {st === 'done' ? <p className="lp-ok" role="status">{msg}</p> :
+            <form onSubmit={submit}>
+              <label>Name<input required maxLength={80} autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })}/></label>
+              <label>Email<input required type="email" maxLength={120} autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })}/></label>
+              <label>I am interested as<select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>
+                <option value="home">A home owner or renter</option><option value="business">A business or building manager</option><option value="student">A student</option><option value="researcher">A researcher or engineer</option><option value="other">Something else</option></select></label>
+              <label>Anything we should know? (optional)<textarea maxLength={500} rows={3} value={f.note} onChange={e => setF({ ...f, note: e.target.value })}/></label>
+              <input className="lp-hp" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.website} onChange={e => setF({ ...f, website: e.target.value })}/>
+              <button className="lp-btn" disabled={st === 'sending'}>{st === 'sending' ? 'Joining…' : 'Join the waitlist'}</button>
+              {st === 'error' && <p className="lp-err" role="alert">{msg}</p>}
+            </form>}
+        </div>
+        <aside className="lp-account"><h3>Try the app</h3>
+          {pub ? <p>Accounts are not available on this public site. Run Ember on your own computer to use the lab.</p> : <>
+            <p>Create an account to use the hazard scanner, building survey, Guardian simulator and the flame lab. Accounts are stored on your own computer.</p>
+            <div className="lp-cta"><a className="lp-btn" href="#signup">Create account</a><a className="lp-btn alt" href="#login">Sign in</a></div></>}
+        </aside>
+      </div>
+    </section>
+    <footer className="lp-foot">Built by the Ember team for NASA Space Apps.</footer>
   </div>;
 }

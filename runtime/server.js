@@ -5,7 +5,8 @@ import { readFile, stat } from "node:fs/promises";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 //#region node_modules/zod/v3/helpers/util.js
 var util;
 (function(util) {
@@ -3572,6 +3573,19 @@ var sensorSchema = objectType({
 	smoke_alarm: booleanType().optional(),
 	co_alarm: booleanType().optional(),
 	sensor_fault: booleanType().optional(),
+	warming_up: booleanType().optional(),
+	flame_detected: booleanType().optional(),
+	armed: booleanType().optional(),
+	guardian_state: enumType([
+		"warmup",
+		"normal",
+		"watch",
+		"warning",
+		"discharging",
+		"cooldown",
+		"fault"
+	]).optional(),
+	guardian_score: numberType().finite().min(0).max(20).optional(),
 	timestamp: stringType().datetime().optional()
 }).strict().refine((x) => [
 	x.ambient_c,
@@ -3624,6 +3638,159 @@ var experimentSchema = objectType({
 		])
 	})
 });
+var waitlistSchema = objectType({
+	name: stringType().trim().min(1).max(80),
+	email: stringType().trim().toLowerCase().email().max(120),
+	role: enumType([
+		"home",
+		"business",
+		"student",
+		"researcher",
+		"other"
+	]),
+	note: stringType().trim().max(500).optional(),
+	website: stringType().max(200).optional()
+}).strict();
+var signupSchema = objectType({
+	name: stringType().trim().min(1).max(80),
+	email: stringType().trim().toLowerCase().email().max(120),
+	password: stringType().min(10).max(128)
+}).strict();
+var loginSchema = objectType({
+	email: stringType().trim().toLowerCase().email().max(120),
+	password: stringType().min(1).max(128)
+}).strict();
+//#endregion
+//#region server/password.mjs
+var run = promisify(scrypt);
+var N = 16384, R = 8, P = 1, LEN = 64;
+async function hashPassword(password) {
+	const salt = randomBytes(16);
+	const key = await run(password.normalize("NFKC"), salt, LEN, {
+		N,
+		r: R,
+		p: P
+	});
+	return `scrypt$${N}$${salt.toString("hex")}$${key.toString("hex")}`;
+}
+async function verifyPassword(password, stored) {
+	const parts = String(stored).split("$");
+	if (parts.length !== 4 || parts[0] !== "scrypt") return false;
+	const salt = Buffer.from(parts[2], "hex"), expected = Buffer.from(parts[3], "hex");
+	const key = await run(password.normalize("NFKC"), salt, expected.length, {
+		N: Number(parts[1]),
+		r: R,
+		p: P
+	});
+	return key.length === expected.length && timingSafeEqual(key, expected);
+}
+//#endregion
+//#region server/auth.mjs
+var SESSION_MS = 7 * 864e5, COOKIE = "ember_session";
+var sha = (v) => createHash("sha256").update(v).digest("hex");
+function installAuth(db, { secureCookie = false } = {}) {
+	db.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,name TEXT NOT NULL,passHash TEXT NOT NULL,createdAt INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions(tokenHash TEXT PRIMARY KEY,userId TEXT NOT NULL,expiresAt INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(userId);`);
+	const attempts = /* @__PURE__ */ new Map();
+	let dummy;
+	const cookieOf = (req) => {
+		for (const part of (req.headers.cookie || "").split(";")) {
+			const [k, ...v] = part.trim().split("=");
+			if (k === COOKIE) return v.join("=");
+		}
+		return null;
+	};
+	const setCookie = (res, token, maxAgeS) => res.setHeader("Set-Cookie", `${COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAgeS}${secureCookie ? "; Secure" : ""}`);
+	function getSession(req) {
+		const t = cookieOf(req);
+		if (!t) return null;
+		const row = db.prepare("SELECT u.id,u.name,u.email,s.expiresAt FROM sessions s JOIN users u ON u.id=s.userId WHERE s.tokenHash=?").get(sha(t));
+		return row && row.expiresAt >= Date.now() ? {
+			id: row.id,
+			name: row.name,
+			email: row.email
+		} : null;
+	}
+	function startSession(res, userId) {
+		const token = randomBytes(32).toString("hex");
+		db.prepare("DELETE FROM sessions WHERE expiresAt<?").run(Date.now());
+		db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(sha(token), userId, Date.now() + SESSION_MS);
+		setCookie(res, token, SESSION_MS / 1e3);
+	}
+	async function handle(req, res, url, { json, body }) {
+		if (!url.pathname.startsWith("/api/auth/")) return false;
+		const send = (status, data) => {
+			json(res, status, data);
+			return true;
+		};
+		const p = url.pathname.slice(10);
+		const closed = () => process.env.EMBER_CLOSED_SIGNUP === "1" && db.prepare("SELECT count(*) AS n FROM users").get().n > 0;
+		if (p === "me" && req.method === "GET") {
+			const user = getSession(req);
+			return user ? send(200, {
+				user,
+				canSignUp: !closed()
+			}) : send(401, {
+				error: "Not signed in.",
+				canSignUp: !closed()
+			});
+		}
+		if (p === "signup" && req.method === "POST") {
+			const r = signupSchema.safeParse(await body(req, 2e3));
+			if (!r.success) return send(400, { error: "Enter your name, a valid email and a password of at least 10 characters." });
+			if (closed()) return send(403, { error: "Sign-ups are closed on this installation." });
+			const { name, email, password } = r.data;
+			if (db.prepare("SELECT 1 FROM users WHERE email=?").get(email)) return send(409, { error: "An account with this email already exists. Sign in instead." });
+			const id = crypto.randomUUID();
+			try {
+				db.prepare("INSERT INTO users VALUES(?,?,?,?,?)").run(id, email, name, await hashPassword(password), Date.now());
+			} catch {
+				return send(409, { error: "An account with this email already exists. Sign in instead." });
+			}
+			startSession(res, id);
+			return send(201, { user: {
+				id,
+				name,
+				email
+			} });
+		}
+		if (p === "login" && req.method === "POST") {
+			const r = loginSchema.safeParse(await body(req, 2e3));
+			if (!r.success) return send(400, { error: "Enter your email and password." });
+			const key = (req.socket.remoteAddress || "?") + "|" + r.data.email, now = Date.now();
+			if (attempts.size > 2e3) attempts.clear();
+			const hits = (attempts.get(key) || []).filter((t) => now - t < 9e5);
+			if (hits.length >= 5) return send(429, { error: "Too many attempts. Wait 15 minutes and try again." });
+			const u = db.prepare("SELECT * FROM users WHERE email=?").get(r.data.email);
+			dummy ??= await hashPassword("ember-dummy-password");
+			const ok = await verifyPassword(r.data.password, u ? u.passHash : dummy);
+			if (!u || !ok) {
+				hits.push(now);
+				attempts.set(key, hits);
+				return send(401, { error: "Incorrect email or password." });
+			}
+			attempts.delete(key);
+			startSession(res, u.id);
+			return send(200, { user: {
+				id: u.id,
+				name: u.name,
+				email: u.email
+			} });
+		}
+		if (p === "logout" && req.method === "POST") {
+			const t = cookieOf(req);
+			if (t) db.prepare("DELETE FROM sessions WHERE tokenHash=?").run(sha(t));
+			setCookie(res, "", 0);
+			return send(200, { ok: true });
+		}
+		return send(404, { error: "Endpoint not found." });
+	}
+	return {
+		handle,
+		getSession
+	};
+}
 //#endregion
 //#region lib/safety.ts
 var CATEGORIES = {
@@ -3791,9 +3958,24 @@ function evaluateDetection(history, now) {
 		details: [s.smoke_alarm ? "Device reports an active smoke-alarm contact." : "Device reports an active CO-alarm contact.", "Leave the building if an alarm sounds or smoke/fire is present. Call local emergency services from a safe place."],
 		rise: null
 	};
+	if (s.guardian_state === "discharging" || s.guardian_state === "cooldown") return {
+		state: "alarm",
+		details: ["Ember Guardian reports a confirmed pre-fire pattern and a suppressant release.", "Leave the area. Call emergency services if smoke or fire is present."],
+		rise: null
+	};
 	if (s.sensor_fault === true) return {
 		state: "fault",
 		details: ["Device reports a sensor fault. This is not an all-clear."],
+		rise: null
+	};
+	if (s.guardian_state === "warning") return {
+		state: "warning",
+		details: ["Ember Guardian: two independent sensor types agree on a possible pre-fire pattern.", "These signals do not identify a fire, its origin, or its cause."],
+		rise: null
+	};
+	if (s.warming_up === true) return {
+		state: "collecting",
+		details: ["The sensor is warming up (about 30 to 60 seconds). Monitoring starts when it finishes."],
 		rise: null
 	};
 	let start = sorted.length - 1;
@@ -3974,7 +4156,7 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 			body: JSON.stringify({
 				model: c.model,
 				store: false,
-				max_output_tokens: 2400,
+				max_output_tokens: 5e3,
 				instructions: VISION_PROMPT,
 				input: [{
 					role: "user",
@@ -3999,12 +4181,7 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 		throw Object.assign(/* @__PURE__ */ new Error(error.name === "TimeoutError" ? "AI analysis timed out. No findings were saved." : "Could not reach the AI provider. Check the local setup or network; no findings were saved."), { status: 503 });
 	}
 	if (!response.ok) throw Object.assign(/* @__PURE__ */ new Error(`AI provider returned HTTP ${response.status}. Check the model, credentials and availability. No findings were saved.`), { status: 502 });
-	let result;
-	try {
-		result = await response.json();
-	} catch {
-		throw Object.assign(/* @__PURE__ */ new Error("AI provider returned an unreadable response. No findings were saved."), { status: 502 });
-	}
+	const result = await response.json();
 	let text;
 	if (c.provider === "ollama") text = result.message?.content;
 	else {
@@ -4023,143 +4200,6 @@ async function analyzePhotos(room, photos, { consent = false, env = process.env,
 		result: validateAssessment(raw, photos.length)
 	};
 }
-//#endregion
-//#region lib/usage.ts
-var usagePolicySchema = objectType({
-	cloudEnabled: booleanType(),
-	dailyLimit: numberType().int().min(0).max(100),
-	monthlyLimit: numberType().int().min(0).max(1e3),
-	maxPhotos: numberType().int().min(1).max(4),
-	cooldownSeconds: numberType().int().min(10).max(3600)
-}).strict();
-var DEFAULT_POLICY = {
-	cloudEnabled: false,
-	dailyLimit: 2,
-	monthlyLimit: 10,
-	maxPhotos: 2,
-	cooldownSeconds: 60
-};
-//#endregion
-//#region server/safety/usage.mjs
-function installUsage(db) {
-	db.exec(`CREATE TABLE IF NOT EXISTS ai_policy(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS ai_attempts(id TEXT PRIMARY KEY,at INTEGER NOT NULL,provider TEXT NOT NULL,status TEXT NOT NULL);
-    CREATE INDEX IF NOT EXISTS ai_attempts_time ON ai_attempts(at);`);
-	db.prepare("INSERT OR IGNORE INTO ai_policy VALUES(1,?)").run(JSON.stringify(DEFAULT_POLICY));
-	const policy = () => usagePolicySchema.parse(JSON.parse(db.prepare("SELECT payload FROM ai_policy WHERE id=1").get().payload));
-	function status(now = Date.now()) {
-		const day = new Date(now).toISOString().slice(0, 10), month = day.slice(0, 7);
-		const today = db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='openai' AND at>=?").get(Date.parse(day + "T00:00:00Z")).n;
-		const thisMonth = db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='openai' AND at>=?").get(Date.parse(month + "-01T00:00:00Z")).n;
-		return {
-			policy: policy(),
-			day,
-			month,
-			today,
-			thisMonth,
-			localAttempts: db.prepare("SELECT count(*) AS n FROM ai_attempts WHERE provider='ollama'").get().n,
-			recent: db.prepare("SELECT at,provider,status FROM ai_attempts ORDER BY at DESC LIMIT 12").all()
-		};
-	}
-	function reserve(provider, count, now = Date.now()) {
-		const s = status(now), p = s.policy;
-		const fail = (message) => {
-			throw Object.assign(new Error(message), { status: 429 });
-		};
-		if (count > p.maxPhotos) fail(`Select at most ${p.maxPhotos} photos per request in Usage settings.`);
-		if (provider === "openai") {
-			if (!p.cloudEnabled) fail("Cloud AI is paused. Enable it and choose request limits in Usage & settings.");
-			if (s.today >= p.dailyLimit || s.thisMonth >= p.monthlyLimit) fail("Cloud request allowance reached. Use manual review or a local model.");
-			const last = db.prepare("SELECT at FROM ai_attempts WHERE provider='openai' ORDER BY at DESC LIMIT 1").get();
-			if (last && now - last.at < p.cooldownSeconds * 1e3) fail("Please wait for the cloud-request cooldown before trying again.");
-		}
-		const id = crypto.randomUUID();
-		db.prepare("INSERT INTO ai_attempts VALUES(?,?,?,?)").run(id, now, provider, "started");
-		return id;
-	}
-	return {
-		status,
-		policy,
-		reserve,
-		finish: (id, state) => db.prepare("UPDATE ai_attempts SET status=? WHERE id=?").run(state, id),
-		save: (value) => {
-			const p = usagePolicySchema.parse(value);
-			db.prepare("UPDATE ai_policy SET payload=? WHERE id=1").run(JSON.stringify(p));
-			return status();
-		}
-	};
-}
-var layoutSchema = objectType({
-	width: numberType().min(1).max(30),
-	depth: numberType().min(1).max(30),
-	items: arrayType(objectType({
-		id: stringType().min(1).max(50),
-		type: enumType([
-			{
-				id: "stove",
-				label: "Cooker",
-				kind: "heat"
-			},
-			{
-				id: "heater",
-				label: "Heater",
-				kind: "heat"
-			},
-			{
-				id: "candle",
-				label: "Candle",
-				kind: "heat"
-			},
-			{
-				id: "socket",
-				label: "Socket",
-				kind: "electrical"
-			},
-			{
-				id: "strip",
-				label: "Power strip",
-				kind: "electrical"
-			},
-			{
-				id: "charger",
-				label: "Charger",
-				kind: "electrical"
-			},
-			{
-				id: "curtain",
-				label: "Curtain",
-				kind: "combustible"
-			},
-			{
-				id: "sofa",
-				label: "Furniture",
-				kind: "combustible"
-			},
-			{
-				id: "paper",
-				label: "Paper / fabric",
-				kind: "combustible"
-			},
-			{
-				id: "fuel",
-				label: "Fuel storage",
-				kind: "fuel"
-			},
-			{
-				id: "detector",
-				label: "Smoke alarm",
-				kind: "safety"
-			},
-			{
-				id: "exit",
-				label: "Exit",
-				kind: "exit"
-			}
-		].map((i) => i.id)),
-		x: numberType().min(0).max(30),
-		y: numberType().min(0).max(30)
-	}).strict()).max(80)
-}).strict().refine((r) => r.items.every((i) => i.x <= r.width && i.y <= r.depth) && new Set(r.items.map((i) => i.id)).size === r.items.length, "Markers must be unique and inside the room.");
 //#endregion
 //#region server/safety/routes.mjs
 var hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -4206,9 +4246,6 @@ function installSafety(db) {
     CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,deviceId TEXT NOT NULL,roomId TEXT NOT NULL,source TEXT NOT NULL,level TEXT NOT NULL,openedAt INTEGER NOT NULL,lastAt INTEGER NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS incidents_device_status ON incidents(deviceId,status);
   `);
-	if (!db.prepare("PRAGMA table_info(assessments)").all().some((c) => c.name === "requestHash")) db.exec("ALTER TABLE assessments ADD COLUMN requestHash TEXT");
-	db.exec("CREATE TABLE IF NOT EXISTS room_layouts(roomId TEXT PRIMARY KEY,updatedAt INTEGER NOT NULL,payload TEXT NOT NULL)");
-	const usage = installUsage(db);
 	let analyzing = false;
 	const room = (id) => {
 		const r = db.prepare("SELECT * FROM safety_rooms WHERE id=?").get(id);
@@ -4223,7 +4260,7 @@ function installSafety(db) {
 		if (!r) throw Object.assign(/* @__PURE__ */ new Error("Room not found."), { status: 404 });
 		return r;
 	};
-	const findings = () => db.prepare("SELECT * FROM findings ORDER BY createdAt DESC").all().map((r) => ({
+	const findings = (roomId = null, limit = 500) => db.prepare(roomId ? "SELECT * FROM findings WHERE roomId=? ORDER BY createdAt DESC LIMIT ?" : "SELECT * FROM findings ORDER BY createdAt DESC LIMIT ?").all(...roomId ? [roomId, limit] : [limit]).map((r) => ({
 		...JSON.parse(r.payload),
 		id: r.id,
 		roomId: r.roomId,
@@ -4256,7 +4293,7 @@ function installSafety(db) {
 			return row.id;
 		}
 		const id = crypto.randomUUID();
-		const related = findings().filter((f) => f.roomId === device.roomId && f.createdAt <= now && f.status !== "dismissed").slice(0, 30);
+		const related = findings(device.roomId, 200).filter((f) => f.createdAt <= now && f.status !== "dismissed").slice(0, 30);
 		const payload = {
 			title: titles[evaluation.state],
 			note: "",
@@ -4378,80 +4415,24 @@ function installSafety(db) {
 				});
 			}
 		}
-		if (path === "ai-usage") {
-			if (req.method === "GET") return send(200, usage.status());
-			if (req.method === "PUT") return send(200, usage.save(parse(usagePolicySchema, await body(req, 2e3))));
-		}
-		if (path === "layouts") {
-			if (req.method === "GET") {
-				const id = url.searchParams.get("roomId");
-				requireRoom(id);
-				const row = db.prepare("SELECT * FROM room_layouts WHERE roomId=?").get(id);
-				return send(200, row ? {
-					roomId: id,
-					updatedAt: row.updatedAt,
-					layout: JSON.parse(row.payload)
-				} : null);
-			}
-			if (req.method === "PUT") {
-				const d = parse(objectType({
-					roomId: stringType().uuid(),
-					layout: layoutSchema
-				}).strict(), await body(req, 2e4));
-				requireRoom(d.roomId);
-				db.prepare("INSERT INTO room_layouts VALUES(?,?,?) ON CONFLICT(roomId) DO UPDATE SET updatedAt=excluded.updatedAt,payload=excluded.payload").run(d.roomId, Date.now(), JSON.stringify(d.layout));
-				return send(200, { ok: true });
-			}
-		}
 		if (path === "ai-status" && req.method === "GET") return send(200, await aiStatus());
 		if (path === "analyze" && req.method === "POST") {
 			const data = parse(objectType({
 				roomId: stringType().uuid(),
-				cloudConsent: booleanType().default(false),
-				photoIds: arrayType(stringType().uuid()).min(1).max(4).optional()
+				cloudConsent: booleanType().default(false)
 			}).strict(), await body(req, 2e3));
 			const target = requireRoom(data.roomId);
-			const allPhotos = db.prepare("SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt").all(data.roomId);
-			const photos = data.photoIds ? data.photoIds.map((id) => allPhotos.find((p) => p.id === id)) : allPhotos;
-			if (photos.some((p) => !p) || new Set(data.photoIds || []).size !== (data.photoIds || []).length) return send(400, { error: "Select unique photos from this room." });
+			const photos = db.prepare("SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt").all(data.roomId);
 			if (!photos.length) return send(400, { error: "Add room photos before requesting analysis." });
-			if (incidents().some((i) => i.source === "live" && i.level === "alarm" && i.status !== "closed")) return send(409, { error: "An unresolved device alarm is recorded. Prioritize evacuation and emergency response; do not continue a photo survey during an incident." });
+			if (db.prepare("SELECT 1 FROM incidents WHERE source='live' AND level='alarm' AND status!='closed' LIMIT 1").get()) return send(409, { error: "An unresolved device alarm is recorded. Prioritize evacuation and emergency response; do not continue a photo survey during an incident." });
 			if (analyzing) return send(409, { error: "An AI assessment is already running. Wait for it to finish." });
-			const config = configuration();
-			const requestHash = hash(JSON.stringify({
-				provider: config.provider,
-				model: config.model,
-				prompt: VISION_PROMPT,
-				room: {
-					name: target.name,
-					kind: target.kind,
-					notes: target.notes,
-					adjacent: target.adjacent
-				},
-				photos: photos.map((p) => ({
-					id: p.id,
-					label: p.label,
-					dataUrl: p.dataUrl
-				}))
-			}));
-			const cached = db.prepare("SELECT id,provider,model,result FROM assessments WHERE requestHash=? ORDER BY createdAt DESC LIMIT 1").get(requestHash);
-			if (cached) return send(200, {
-				...cached,
-				result: JSON.parse(cached.result),
-				cached: true
-			});
-			if (config.provider === "disabled") return send(503, { error: "AI is disabled. Use manual observations or configure a model." });
-			if (config.provider === "openai" && !config.key) return send(503, { error: "The OpenAI API key is not configured." });
-			if (config.provider === "openai" && !data.cloudConsent) return send(400, { error: "Confirm sending the selected photos and room notes to OpenAI." });
 			analyzing = true;
-			let attempt;
 			try {
-				attempt = usage.reserve(config.provider, photos.length);
 				const analysis = await analyzePhotos(target, photos, { consent: data.cloudConsent });
 				const id = crypto.randomUUID(), now = Date.now();
 				db.exec("BEGIN");
 				try {
-					db.prepare("INSERT INTO assessments(id,roomId,createdAt,provider,model,result,requestHash) VALUES(?,?,?,?,?,?,?)").run(id, data.roomId, now, analysis.provider, analysis.model, JSON.stringify(analysis.result), requestHash);
+					db.prepare("INSERT INTO assessments VALUES(?,?,?,?,?,?)").run(id, data.roomId, now, analysis.provider, analysis.model, JSON.stringify(analysis.result));
 					for (const f of analysis.result.findings) {
 						const findingId = crypto.randomUUID();
 						const payload = {
@@ -4471,15 +4452,10 @@ function installSafety(db) {
 					db.exec("ROLLBACK");
 					throw e;
 				}
-				usage.finish(attempt, "completed");
 				return send(201, {
 					id,
-					...analysis,
-					cached: false
+					...analysis
 				});
-			} catch (error) {
-				if (attempt) usage.finish(attempt, "failed");
-				throw error;
 			} finally {
 				analyzing = false;
 			}
@@ -4616,15 +4592,20 @@ try {
 } catch (error) {
 	if (error.code !== "ENOENT") throw error;
 }
-var port = Number(process.env.EMBER_PORT || 3e3);
+var port = Number(process.env.EMBER_PORT || process.env.PORT || 3e3);
+var publicMode = process.env.EMBER_PUBLIC === "1";
+var rate = /* @__PURE__ */ new Map();
+var same = (a, b) => timingSafeEqual(createHash("sha256").update(String(a)).digest(), createHash("sha256").update(String(b)).digest());
 var dataDir = process.env.EMBER_DATA_DIR || path.join(root, "data");
 mkdirSync(dataDir, { recursive: true });
 var db = new DatabaseSync(path.join(dataDir, "ember.sqlite"));
 db.exec(`PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS experiments(id TEXT PRIMARY KEY,title TEXT NOT NULL,createdAt INTEGER NOT NULL,payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS telemetry(id TEXT PRIMARY KEY,receivedAt INTEGER NOT NULL,source TEXT NOT NULL,payload TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS waitlist(id TEXT PRIMARY KEY,createdAt INTEGER NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,role TEXT NOT NULL,note TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS telemetry_received ON telemetry(receivedAt);`);
 var safety = installSafety(db);
+var auth = installAuth(db, { secureCookie: process.env.EMBER_SECURE_COOKIE === "1" });
 var vite = process.argv.includes("--dev") ? await (await import("vite")).createServer({
 	root,
 	server: { middlewareMode: true },
@@ -4638,13 +4619,15 @@ function json(res, status, data) {
 	res.end(JSON.stringify(data));
 }
 async function body(req, limit) {
-	let text = "";
+	const chunks = [];
+	let size = 0;
 	for await (const chunk of req) {
-		text += chunk;
-		if (Buffer.byteLength(text) > limit) throw Object.assign(/* @__PURE__ */ new Error("Request is too large."), { status: 413 });
+		size += chunk.length;
+		if (size > limit) throw Object.assign(/* @__PURE__ */ new Error("Request is too large."), { status: 413 });
+		chunks.push(chunk);
 	}
 	try {
-		return JSON.parse(text);
+		return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 	} catch {
 		throw Object.assign(/* @__PURE__ */ new Error("Invalid JSON."), { status: 400 });
 	}
@@ -4662,13 +4645,62 @@ var types = {
 var server = http.createServer(async (req, res) => {
 	try {
 		const validHosts = [`localhost:${port}`, `127.0.0.1:${port}`];
-		if (!validHosts.includes(req.headers.host || "")) return json(res, 403, { error: "This application accepts localhost connections only." });
+		if (!publicMode && !validHosts.includes(req.headers.host || "")) return json(res, 403, { error: "This application accepts localhost connections only." });
 		const url = new URL(req.url, `http://${req.headers.host}`);
 		if (req.method !== "GET" && req.method !== "HEAD") {
 			const origin = req.headers.origin;
-			if (origin && !validHosts.map((h) => "http://" + h).includes(origin)) return json(res, 403, { error: "Cross-origin write rejected." });
+			if (origin && (publicMode ? !(() => {
+				try {
+					return new URL(origin).host === req.headers.host;
+				} catch {
+					return false;
+				}
+			})() : !validHosts.map((h) => "http://" + h).includes(origin))) return json(res, 403, { error: "Cross-origin write rejected." });
 			if (req.headers["sec-fetch-site"] === "cross-site") return json(res, 403, { error: "Cross-site request rejected." });
 		}
+		if (publicMode && url.pathname.startsWith("/api/") && !["/api/health", "/api/waitlist"].includes(url.pathname)) return json(res, 403, { error: "Not available on the public site." });
+		const session = publicMode ? null : auth.getSession(req);
+		if (url.pathname === "/api/waitlist") {
+			if (req.method === "POST") {
+				const raw = await body(req, 4e3);
+				if (raw && typeof raw.website === "string" && raw.website) return json(res, 201, { ok: true });
+				const ip = req.socket.remoteAddress || "?", now = Date.now(), hits = (rate.get(ip) || []).filter((t) => now - t < 36e5);
+				if (hits.length >= 5) return json(res, 429, { error: "Too many sign-ups from this connection. Try again later." });
+				hits.push(now);
+				rate.set(ip, hits);
+				if (rate.size > 2e3) rate.clear();
+				const parsed = waitlistSchema.safeParse(raw);
+				if (!parsed.success) return json(res, 400, { error: "Enter your name and a valid email address." });
+				const { name, email, role, note } = parsed.data;
+				return json(res, 201, {
+					ok: true,
+					already: db.prepare("INSERT OR IGNORE INTO waitlist(id,createdAt,name,email,role,note) VALUES(?,?,?,?,?,?)").run(crypto.randomUUID(), now, name, email, role, note || "").changes === 0
+				});
+			}
+			if (req.method === "GET") {
+				const token = process.env.EMBER_ADMIN_TOKEN;
+				if (!(token && same(req.headers["x-admin-token"] || "", token) || !publicMode && !!session)) return json(res, 403, { error: "Sign in (or send the X-Admin-Token header) to read the waitlist." });
+				const rows = db.prepare("SELECT createdAt,name,email,role,note FROM waitlist ORDER BY createdAt DESC").all();
+				if (url.searchParams.get("format") !== "csv") return json(res, 200, rows);
+				const q = (v) => "\"" + String(v).replace(/^[=+\-@]/, "'$&").replace(/"/g, "\"\"") + "\"";
+				res.writeHead(200, {
+					"Content-Type": "text/csv; charset=utf-8",
+					"Content-Disposition": "attachment; filename=\"waitlist.csv\""
+				});
+				return res.end(["date,name,email,role,note", ...rows.map((r) => [
+					new Date(r.createdAt).toISOString(),
+					r.name,
+					r.email,
+					r.role,
+					r.note
+				].map(q).join(","))].join("\n"));
+			}
+		}
+		if (await auth.handle(req, res, url, {
+			json,
+			body
+		})) return;
+		if (url.pathname.startsWith("/api/") && !["/api/health", "/api/safety/device-telemetry"].includes(url.pathname) && !session) return json(res, 401, { error: "Sign in required." });
 		if (await safety(req, res, url, {
 			json,
 			body
@@ -4676,7 +4708,7 @@ var server = http.createServer(async (req, res) => {
 		if (url.pathname === "/api/health") return json(res, 200, {
 			ok: true,
 			storage: "SQLite",
-			mode: "local"
+			mode: publicMode ? "public" : "local"
 		});
 		if (url.pathname === "/api/runs") {
 			if (req.method === "GET") return json(res, 200, db.prepare("SELECT * FROM experiments ORDER BY createdAt DESC LIMIT 100").all().map((r) => ({
@@ -4708,9 +4740,9 @@ var server = http.createServer(async (req, res) => {
 			if (req.method === "POST") {
 				const parsed = telemetrySchema.safeParse(await body(req, 5e3));
 				if (!parsed.success) return json(res, 400, { error: "Invalid sensor sample. Check the documented JSON format." });
-				const latest = db.prepare("SELECT receivedAt FROM telemetry ORDER BY receivedAt DESC LIMIT 1").get();
+				const latest = db.prepare("SELECT receivedAt FROM telemetry WHERE json_extract(payload,'$.device_id')=? ORDER BY receivedAt DESC LIMIT 1").get(parsed.data.sample.device_id);
 				const receivedAt = Date.now();
-				if (latest && receivedAt - Number(latest.receivedAt) < 900) return json(res, 429, { error: "Record at most one sample per second." });
+				if (latest && receivedAt - Number(latest.receivedAt) < 500) return json(res, 429, { error: "Record at most two samples per second per device." });
 				const id = crypto.randomUUID();
 				db.prepare("INSERT INTO telemetry VALUES(?,?,?,?)").run(id, receivedAt, parsed.data.source, JSON.stringify(parsed.data.sample));
 				db.prepare("DELETE FROM telemetry WHERE receivedAt < ?").run(receivedAt - 7 * 864e5);
@@ -4724,7 +4756,13 @@ var server = http.createServer(async (req, res) => {
 		if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, { error: "Method not allowed." });
 		if (vite) return vite.middlewares(req, res, () => json(res, 404, { error: "Not found." }));
 		const base = path.join(root, "dist");
-		const file = path.resolve(base, "." + decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname));
+		let rel;
+		try {
+			rel = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
+		} catch {
+			return json(res, 400, { error: "Invalid path." });
+		}
+		const file = path.resolve(base, "." + rel);
 		if (!file.startsWith(base + path.sep)) return json(res, 403, { error: "Invalid path." });
 		try {
 			if (!(await stat(file)).isFile()) throw new Error("not a file");
@@ -4743,7 +4781,7 @@ var server = http.createServer(async (req, res) => {
 		console.error(error.message);
 	}
 });
-server.listen(port, "127.0.0.1", () => console.log(`\n  EMBER — Building Safety & Combustion Lab\n  Open http://localhost:${port}\n  Surveys, sensor events and experiments are stored on this computer.\n  Press Ctrl+C to stop.\n`));
+server.listen(port, publicMode ? "0.0.0.0" : "127.0.0.1", () => console.log(`\n  EMBER — Building Safety & Combustion Lab\n  Open http://localhost:${port}\n  Surveys, sensor events and experiments are stored on this computer.\n  Press Ctrl+C to stop.\n`));
 server.on("error", (error) => {
 	console.error(error.message);
 	process.exitCode = 1;

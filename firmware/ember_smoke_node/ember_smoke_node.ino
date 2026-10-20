@@ -65,7 +65,8 @@ void loop() {
     Serial.print(",\"humidity_pct\":"); Serial.print(h, 2);
   }
   // The particle channel is required. An absent optional BME280 is omitted.
-  Serial.print(",\"sensor_fault\":"); Serial.print(!validParticles || (bmeReady && !validAmbient) ? "true" : "false");
+  Serial.print(",\"sensor_fault\":"); Serial.print((!startup && !validParticles) || (bmeReady && !validAmbient) ? "true" : "false");
+  if (startup) Serial.print(",\"warming_up\":true");
   // Alarm contacts continue to report during startup and particle-sensor faults.
   if (USE_ALARM_CONTACT) {
     Serial.print(",\"smoke_alarm\":"); Serial.print(digitalRead(ALARM_PIN) == LOW ? "true" : "false");

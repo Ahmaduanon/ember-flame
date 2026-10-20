@@ -12,8 +12,10 @@ async function start(){
   await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error('Server startup timeout')),8000);child.stdout.on('data',d=>{if(d.toString().includes('Open http://')){clearTimeout(timeout);resolve();}});child.once('exit',c=>{clearTimeout(timeout);reject(new Error(`Server exited ${c}`));});});
 }
 async function stop(){if(!child||child.exitCode!==null)return;await new Promise(resolve=>{child.once('exit',resolve);child.kill('SIGTERM');});}
-async function request(url,method='GET',data,headers={}){return fetch(origin+url,{method,headers:{'Content-Type':'application/json',...headers},body:data===undefined?undefined:JSON.stringify(data)});}
-before(async()=>{dir=await mkdtemp(path.join(tmpdir(),'ember-test-'));await cp('runtime',path.join(dir,'runtime'),{recursive:true});await cp('dist',path.join(dir,'dist'),{recursive:true});await writeFile(path.join(dir,'package.json'),'{"type":"module"}');await start();});
+let cookie='';
+async function request(url,method='GET',data,headers={}){const r=await fetch(origin+url,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{}),...headers},body:data===undefined?undefined:JSON.stringify(data)});const sc=(r.headers.getSetCookie?.()||[])[0];if(sc&&sc.startsWith('ember_session=')&&!sc.includes('Max-Age=0'))cookie=sc.split(';')[0];return r;}
+async function signIn(){const r=await request('/api/auth/signup','POST',{name:'Test User',email:'test@example.com',password:'correct horse battery'});assert.equal(r.status,201);}
+before(async()=>{dir=await mkdtemp(path.join(tmpdir(),'ember-test-'));await cp('runtime',path.join(dir,'runtime'),{recursive:true});await cp('dist',path.join(dir,'dist'),{recursive:true});await writeFile(path.join(dir,'package.json'),'{"type":"module"}');await start();await signIn();});
 after(async()=>{await stop();await rm(dir,{recursive:true,force:true});});
 test('prebuilt app runs without node_modules and serves static assets',async()=>{assert.equal((await request('/api/health')).status,200);const r=await request('/');assert.equal(r.status,200);const html=await r.text();assert.match(html,/Ember/);const asset=html.match(/src="([^"]+\.js)"/)[1];assert.equal((await request(asset)).status,200);assert.equal((await request('/downloads/ember_esp32.ino')).status,200);assert.equal((await request('/downloads/IOT-SETUP.md')).status,200);});
 test('experiment persists across restart and can be deleted',async()=>{
@@ -81,13 +83,17 @@ test('a browser USB sample can trigger a paired device and setup downloads are p
   for(const path of ['AI-SETUP.md','SMOKE-NODE.md','ember_smoke_node.ino','monitor_gateway.py'])assert.equal((await request('/downloads/'+path)).status,200);
 });
 
-test('manual layouts persist and the usage policy API validates hard request limits',async()=>{
-  const room=await createRoom('Planner room');const layout={width:6,depth:4,items:[{id:'marker-1',type:'exit',x:5,y:3}]};
-  assert.equal((await request('/api/safety/layouts','PUT',{roomId:room.id,layout})).status,200);
-  assert.deepEqual((await(await request('/api/safety/layouts?roomId='+room.id)).json()).layout,layout);
-  assert.equal((await request('/api/safety/layouts','PUT',{roomId:room.id,layout:{...layout,items:[{id:'bad',type:'exit',x:7,y:3}]}})).status,400);
-  const initial=await(await request('/api/safety/ai-usage')).json();assert.equal(initial.policy.cloudEnabled,false);
-  assert.equal((await request('/api/safety/ai-usage','PUT',{...initial.policy,dailyLimit:-1})).status,400);
-  const policy={...initial.policy,dailyLimit:0,monthlyLimit:0};assert.equal((await request('/api/safety/ai-usage','PUT',policy)).status,200);
-  await stop();await start();assert.deepEqual((await(await request('/api/safety/ai-usage')).json()).policy,policy);assert.deepEqual((await(await request('/api/safety/layouts?roomId='+room.id)).json()).layout,layout);
+test('accounts: API requires sign-in and rejects bad credentials',async()=>{
+  const raw=(u,m='GET',d)=>fetch(origin+u,{method:m,headers:{'Content-Type':'application/json'},body:d?JSON.stringify(d):undefined});
+  assert.equal((await raw('/api/runs')).status,401);
+  assert.equal((await raw('/api/auth/login','POST',{email:'test@example.com',password:'wrong-password'})).status,401);
+  assert.equal((await request('/api/auth/me')).status,200);
+  assert.equal((await request('/api/auth/signup','POST',{name:'x',email:'new@example.com',password:'short'})).status,400);
+});
+test('waitlist accepts public sign-ups, de-duplicates and keeps the list private',async()=>{
+  const body={name:'\u0198a\u0199a Musa',email:'Wait@Example.com',role:'home'};
+  const post=()=>fetch(origin+'/api/waitlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  assert.equal((await post()).status,201);assert.equal((await(await post()).json()).already,true);
+  assert.equal((await fetch(origin+'/api/waitlist')).status,403);
+  const rows=await(await request('/api/waitlist')).json();assert.equal(rows[0].email,'wait@example.com');assert.equal(rows[0].name,body.name);
 });

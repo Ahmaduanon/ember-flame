@@ -10,7 +10,10 @@ export function evaluateDetection(history:DetectionSample[],now:number):Detectio
   const s=last.sample;
   // Independent alarm inputs are never delayed by warm-up, corroboration, or a fault.
   if(s.smoke_alarm===true||s.co_alarm===true)return{state:'alarm',details:[s.smoke_alarm?'Device reports an active smoke-alarm contact.':'Device reports an active CO-alarm contact.','Leave the building if an alarm sounds or smoke/fire is present. Call local emergency services from a safe place.'],rise:null};
+  if(s.guardian_state==='discharging'||s.guardian_state==='cooldown')return{state:'alarm',details:['Ember Guardian reports a confirmed pre-fire pattern and a suppressant release.','Leave the area. Call emergency services if smoke or fire is present.'],rise:null};
   if(s.sensor_fault===true)return{state:'fault',details:['Device reports a sensor fault. This is not an all-clear.'],rise:null};
+  if(s.guardian_state==='warning')return{state:'warning',details:['Ember Guardian: two independent sensor types agree on a possible pre-fire pattern.','These signals do not identify a fire, its origin, or its cause.'],rise:null};
+  if(s.warming_up===true)return{state:'collecting',details:['The sensor is warming up (about 30 to 60 seconds). Monitoring starts when it finishes.'],rise:null};
   let start=sorted.length-1;while(start>0&&sorted[start].at-sorted[start-1].at<=RULES.gapSeconds*1000&&now-sorted[start-1].at<120000)start--;
   const recent=sorted.slice(start);const past=recent.find(r=>r.sample.sensor_fault!==true&&typeof r.sample.ambient_c==='number'&&last.at-r.at>=10000&&last.at-r.at<=60000);
   const rise=past&&typeof s.ambient_c==='number'?((s.ambient_c-past.sample.ambient_c!)/((last.at-past.at)/60000)):null;

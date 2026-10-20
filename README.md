@@ -1,4 +1,4 @@
-# Ember Studio 0.4 — Building Intelligence
+# Ember 0.2 — Building Safety & Combustion Lab
 
 A portable local project combining room-photo surveys, prototype sensor monitoring, incident review and the gravity/flame laboratory. No GitHub account or deployment is needed. This is a research prototype; keep approved smoke/CO alarms working independently.
 
@@ -7,7 +7,7 @@ A portable local project combining room-photo surveys, prototype sensor monitori
 1. Extract the ZIP completely on a desktop computer.
 2. Install Node.js 22.13 or newer from https://nodejs.org/ if needed.
 3. Windows: open `START-LAB.cmd`. macOS: open `Start-Lab.command` (or run `sh start-lab.sh`). Linux: run `sh start-lab.sh`.
-4. Open http://localhost:3000 and select **Open workspace**. The prebuilt app needs no npm installation or build.
+4. The first run installs dependencies and builds the app (internet needed once, about a minute). Then open http://localhost:3000, create an account and sign in.
 
 The app runs on a computer, not directly inside iPhone Files. Phone photos can be transferred to the computer for upload. Browser camera access depends on browser/device support.
 
@@ -20,10 +20,6 @@ The app runs on a computer, not directly inside iPhone Files. Phone photos can b
 - Review particle/CO/temperature changes, independent alarm contacts, missing channels, faults and offline states. Optional browser notifications work while Ember stays open.
 - Exercise labeled demo scenarios. Demo/import readings do not affect real-device monitoring.
 - Review incidents with sensor evidence and snapshots of earlier room observations, then export JSON records. Earlier observations do not establish fire cause or blame.
-
-The redesigned landing page takes inspiration from the supplied navy architecture reference. See `docs/COMPARISON-AND-RELEASE.md` for the comparison with Claude’s v0.3 and the combined decisions.
-
-New: saved room sketches, an interactive synthetic sensor playground, selected photo analysis, cached AI results, persistent usage controls, and a FormSubmit enquiry form addressed to salisuashraf46@gmail.com. Cloud requests are paused by default; enable them in **Usage & settings** only after configuring a provider.
 
 Start with **Buildings & alerts → Add a room**. See `docs/SMOKE-NODE.md` for the ESP32/PMS5003 starter and `docs/SAFETY-MODEL.md` for implemented rules. A full house survey consists of room records and photos; no automatic 3D reconstruction or code-compliance certification is implemented.
 
@@ -112,4 +108,11 @@ This is a single-user local app. It listens only on 127.0.0.1, validates Host/Or
 - **Blank oxygen/probe field:** those sensors are not implemented by the starter; no reading is invented.
 - **Slow or missing data:** inspect stale status, rejected packet count and JSON format.
 
-Verification completed: TypeScript checks, production builds, 34 passing automated model, detection, vision-adapter and local-server integration tests. No visual browser automation or physical hardware validation was available in the build environment.
+Verification completed: TypeScript checks, production builds, 29 passing automated model, detection, vision-adapter and local-server integration tests. No visual browser automation or physical hardware validation was available in the build environment.
+
+## Ember 0.3 additions
+- **Landing page** at `/` with a waitlist form; **sign up / sign in** pages; the lab opens at `#app` after sign-in. Accounts are stored on this computer (scrypt-hashed passwords, HttpOnly SameSite=Strict session cookie, 7-day sessions, login rate limit). All accounts on one installation share the same data; `EMBER_CLOSED_SIGNUP=1` closes sign-up after the first account.
+- **Hazard scanner** tab: map a room and get rule-based fire-hazard findings (screening only, not an inspection).
+- **Guardian** tab, `firmware/guardian/` and `docs/GUARDIAN.md`: pre-fire detection logic, simulator, USB live view, limited suppressant release. Guardian states feed the existing alert pipeline.
+- **Waitlist**: signed-in users download it at `/api/waitlist?format=csv`. For public hosting of the landing page only: `EMBER_PUBLIC=1 EMBER_ADMIN_TOKEN=<secret> npm start` (everything else stays closed; read sign-ups with `curl -H "X-Admin-Token: <secret>" "https://your-host/api/waitlist?format=csv"`).
+- Fixes: findings queries are bounded (state returns the newest 500), malformed URLs return 400, request bodies are decoded as UTF-8 safely, telemetry rate limit is per device (aligned with the safety path), and the smoke node reports `warming_up` instead of a fault for the first seconds.

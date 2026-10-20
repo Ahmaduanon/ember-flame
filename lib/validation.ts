@@ -13,6 +13,11 @@ export const sensorSchema = z.object({
   smoke_alarm: z.boolean().optional(),
   co_alarm: z.boolean().optional(),
   sensor_fault: z.boolean().optional(),
+  warming_up: z.boolean().optional(),
+  flame_detected: z.boolean().optional(),
+  armed: z.boolean().optional(),
+  guardian_state: z.enum(['warmup','normal','watch','warning','discharging','cooldown','fault']).optional(),
+  guardian_score: z.number().finite().min(0).max(20).optional(),
   timestamp: z.string().datetime().optional(),
 }).strict().refine(x=>[x.ambient_c,x.oxygen_pct,x.acceleration_ms2,x.probe_c,x.pm25_ugm3,x.co_ppm,x.humidity_pct].some(v=>typeof v==='number') || typeof x.smoke_alarm==='boolean' || typeof x.co_alarm==='boolean' || typeof x.sensor_fault==='boolean', 'At least one measurement, alarm contact or fault status is required.');
 export type SensorSample = z.infer<typeof sensorSchema>;
@@ -22,3 +27,6 @@ export const experimentSchema = z.object({
   title:z.string().trim().min(1).max(80),
   payload:z.object({model:z.literal('EMBER-ROM 0.1'),settings:settingsSchema,initialSettings:settingsSchema,intervention:z.enum(['none','cutoff','dilution','cooling']),points:z.array(pointSchema).min(1).max(1200),events:z.array(z.object({time:z.number().finite().min(0),text:z.string().max(200)})).max(200),status:z.enum(['stable','weak','extinguished'])})
 });
+export const waitlistSchema = z.object({name:z.string().trim().min(1).max(80),email:z.string().trim().toLowerCase().email().max(120),role:z.enum(['home','business','student','researcher','other']),note:z.string().trim().max(500).optional(),website:z.string().max(200).optional()}).strict();
+export const signupSchema = z.object({name:z.string().trim().min(1).max(80),email:z.string().trim().toLowerCase().email().max(120),password:z.string().min(10).max(128)}).strict();
+export const loginSchema = z.object({email:z.string().trim().toLowerCase().email().max(120),password:z.string().min(1).max(128)}).strict();
