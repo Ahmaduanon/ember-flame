@@ -15,9 +15,9 @@
     "start:source": "node --experimental-strip-types server/server.mjs"
   },
   "dependencies": {
+    "lucide-react": "1.31.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "lucide-react": "1.31.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
@@ -26,6 +26,6 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "typescript": "5.9.3",
-    "vite": "8.0.13"
+    "vite": "^8.3.4"
   }
 }
