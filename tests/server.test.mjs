@@ -17,17 +17,12 @@ async function request(url,method='GET',data,headers={}){const r=await fetch(ori
 async function signIn(){const r=await request('/api/auth/signup','POST',{name:'Test User',email:'test@example.com',password:'correct horse battery'});assert.equal(r.status,201);}
 before(async()=>{dir=await mkdtemp(path.join(tmpdir(),'ember-test-'));await cp('runtime',path.join(dir,'runtime'),{recursive:true});await cp('dist',path.join(dir,'dist'),{recursive:true});await writeFile(path.join(dir,'package.json'),'{"type":"module"}');await start();await signIn();});
 after(async()=>{await stop();await rm(dir,{recursive:true,force:true});});
-test('prebuilt app runs without node_modules and serves static assets',async()=>{assert.equal((await request('/api/health')).status,200);const r=await request('/');assert.equal(r.status,200);const html=await r.text();assert.match(html,/Ember/);const asset=html.match(/src="([^"]+\.js)"/)[1];assert.equal((await request(asset)).status,200);assert.equal((await request('/downloads/ember_esp32.ino')).status,200);assert.equal((await request('/downloads/IOT-SETUP.md')).status,200);});
+test('prebuilt app runs without node_modules and serves static assets',async()=>{assert.equal((await request('/api/health')).status,200);const r=await request('/');assert.equal(r.status,200);const html=await r.text();assert.match(html,/Ember/);const asset=html.match(/src="([^"]+\.js)"/)[1];assert.equal((await request(asset)).status,200);assert.equal((await request('/downloads/AI-SETUP.md')).status,200);assert.equal((await request('/downloads/SAFETY-MODEL.md')).status,200);});
 test('experiment persists across restart and can be deleted',async()=>{
   const data={title:'Persistence check',payload:{model:'EMBER-ROM 0.1',settings:DEFAULTS,initialSettings:DEFAULTS,intervention:'none',points:[sample(initialState())],events:[{time:0,text:'Started'}],status:'stable'}};
   const create=await request('/api/runs','POST',data);assert.equal(create.status,201);const {id}=await create.json();
   await stop();await start();let runs=await(await request('/api/runs')).json();assert.equal(runs.find(r=>r.id===id).title,data.title);
   assert.equal((await request('/api/runs?id='+id,'DELETE')).status,200);runs=await(await request('/api/runs')).json();assert.equal(runs.length,0);
-});
-test('server rejects bad telemetry and preserves the demo provenance',async()=>{
-  assert.equal((await request('/api/telemetry','POST',{source:'usb',sample:{device_id:'x',oxygen_pct:120}})).status,400);
-  const saved=await request('/api/telemetry','POST',{source:'demo',sample:{device_id:'demo-01',ambient_c:25}});assert.equal(saved.status,201);
-  const records=await(await request('/api/telemetry')).json();assert.equal(records[0].source,'demo');assert.equal(records[0].sample.ambient_c,25);
 });
 test('cross-origin writes and invalid experiment payloads are rejected',async()=>{
   assert.equal((await request('/api/runs','POST',{}, {Origin:'https://untrusted.example'})).status,403);
@@ -54,33 +49,32 @@ test('room photos validate types, retain findings after deletion and fail clearl
   assert.equal((await(await request('/api/safety/photos?roomId='+room.id)).json()).length,0);
 });
 
-test('paired devices isolate demos, authenticate gateways and preserve incident evidence across restart',async()=>{
-  const room=await createRoom('Sensor room'),other=await createRoom('Unrelated room');
-  const saved=await(await request('/api/safety/findings','POST',findingData(room.id))).json();
-  await request('/api/safety/findings','POST',findingData(other.id));
-  const pair=await request('/api/safety/devices','POST',{id:'test-node',name:'Test sensor',roomId:room.id});assert.equal(pair.status,201);const {token}=await pair.json();assert.equal(token.length,64);
-  assert.equal((await request('/api/safety/devices','POST',{id:'test-node',name:'Duplicate',roomId:other.id})).status,409);
-  let s=await state();assert.equal(s.devices.find(d=>d.id==='test-node').state,'offline');assert.ok(!JSON.stringify(s).includes(token));assert.ok(!JSON.stringify(s).includes('tokenHash'));
-  const demo=await request('/api/safety/demo','POST',{roomId:room.id,scenario:'alarm'});assert.equal(demo.status,201);
-  const isolated=await request('/api/safety/samples','POST',{source:'demo',sample:{device_id:'test-node',smoke_alarm:true}});assert.equal((await isolated.json()).accepted,false);
-  const imported=await request('/api/safety/samples','POST',{source:'import',sample:{device_id:'test-node',smoke_alarm:true}});assert.equal((await imported.json()).accepted,false);
-  s=await state();assert.equal(s.devices.find(d=>d.id==='test-node').lastSeen,null);assert.ok(s.incidents.some(i=>i.source==='demo'));assert.ok(!s.incidents.some(i=>i.source==='live'));
-  const sample={device_id:'test-node',smoke_alarm:true,sensor_fault:true};
-  assert.equal((await request('/api/safety/device-telemetry','POST',sample)).status,401);
-  assert.equal((await request('/api/safety/device-telemetry','POST',sample,{Authorization:'Bearer wrong'})).status,401);
-  const real=await request('/api/safety/device-telemetry','POST',sample,{Authorization:'Bearer '+token});assert.equal(real.status,200);const result=await real.json();assert.equal(result.state,'alarm');
-  s=await state();let incident=s.incidents.find(i=>i.id===result.incidentId);assert.equal(incident.source,'live');assert.equal(incident.related.length,1);assert.equal(incident.related[0].id,saved.id);assert.match(incident.cause,/Not established/);
-  assert.equal((await request('/api/safety/incidents','PATCH',{id:incident.id,status:'acknowledged',note:'Test acknowledgement.'})).status,200);
-  assert.equal((await request('/api/safety/incidents','PATCH',{id:incident.id,status:'closed',note:'Attempt to close without clearing.'})).status,409);
-  const ph=await request('/api/safety/photos','POST',{roomId:room.id,label:'Test fixture',dataUrl:pixel});assert.equal(ph.status,201);
-  assert.equal((await request('/api/safety/analyze','POST',{roomId:room.id})).status,409);
-  await stop();await start();s=await state();incident=s.incidents.find(i=>i.id===result.incidentId);assert.equal(incident.status,'acknowledged');assert.equal(s.devices.find(d=>d.id==='test-node').state,'alarm');assert.ok(s.rooms.some(r=>r.id===room.id));assert.equal(incident.related[0].id,saved.id);
+test('rooms and safety findings persist across server restart and maintain integrity',async()=>{
+  const room=await createRoom('Persistent safety room');
+  const f1=await request('/api/safety/findings','POST',{...findingData(room.id),priority:'urgent_review'});assert.equal(f1.status,201);const f1Body=await f1.json();
+  const f2=await request('/api/safety/findings','POST',{...findingData(room.id),priority:'review'});assert.equal(f2.status,201);const f2Body=await f2.json();
+  let s=await state();
+  assert.ok(s.rooms.some(r=>r.id===room.id));
+  assert.ok(s.findings.some(f=>f.id===f1Body.id&&f.priority==='urgent_review'));
+  assert.ok(s.findings.some(f=>f.id===f2Body.id&&f.priority==='review'));
+  await stop();await start();
+  s=await state();
+  assert.ok(s.rooms.some(r=>r.id===room.id));
+  assert.ok(s.findings.some(f=>f.id===f1Body.id&&f.priority==='urgent_review'));
+  assert.ok(s.findings.some(f=>f.id===f2Body.id&&f.priority==='review'));
+  assert.equal(s.devices,undefined);
+  assert.equal(s.incidents,undefined);
 });
 
-test('a browser USB sample can trigger a paired device and setup downloads are packaged',async()=>{
-  const room=await createRoom('USB room');await request('/api/safety/devices','POST',{id:'usb-node',name:'USB sensor',roomId:room.id});
-  const r=await request('/api/safety/samples','POST',{source:'usb',sample:{device_id:'usb-node',co_alarm:true}});assert.equal((await r.json()).state,'alarm');
-  for(const path of ['AI-SETUP.md','SMOKE-NODE.md','ember_smoke_node.ino','monitor_gateway.py'])assert.equal((await request('/downloads/'+path)).status,200);
+test('findings workflow supports reviewing, resolving and dismissing hazards',async()=>{
+  const room=await createRoom('Workflow room');
+  const res=await request('/api/safety/findings','POST',findingData(room.id));assert.equal(res.status,201);const {id}=await res.json();
+  assert.equal((await request('/api/safety/findings','PATCH',{id,status:'confirmed',note:'Verified hazard'})).status,200);
+  let s=await state();assert.equal(s.findings.find(f=>f.id===id).status,'confirmed');
+  assert.equal((await request('/api/safety/findings','PATCH',{id,status:'resolved',note:'Fixed issue'})).status,200);
+  s=await state();assert.equal(s.findings.find(f=>f.id===id).status,'resolved');
+  assert.equal((await request('/api/safety/findings','PATCH',{id,status:'dismissed',note:'False positive'})).status,200);
+  s=await state();assert.equal(s.findings.find(f=>f.id===id).status,'dismissed');
 });
 
 test('accounts: API requires sign-in and rejects bad credentials',async()=>{

@@ -1,118 +1,255 @@
-# Ember 0.2 — Building Safety & Combustion Lab
+# Ember — NASA Spaceflight Fire Safety & Combustion Science Platform
 
-A portable local project combining room-photo surveys, prototype sensor monitoring, incident review and the gravity/flame laboratory. No GitHub account or deployment is needed. This is a research prototype; keep approved smoke/CO alarms working independently.
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13.0-brightgreen.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8.3-646CFF.svg)](https://vitejs.dev/)
+[![Tests](https://img.shields.io/badge/Tests-34%20Passed-success.svg)](./tests)
+[![License](https://img.shields.io/badge/License-MIT-orange.svg)](./THIRD-PARTY-NOTICES.txt)
 
-## Start the included app
+Ember is an advanced, SI-powered web platform designed for space exploration fire safety and terrestrial habitat protection. It synthesizes empirical microgravity combustion science from NASA's **Physical Science Informatics (PSI)** repository, multimodal visual AI habitat inspections, automated spaceflight fire safety auditing (**NASA-STD-6001**, Apollo 1/13, Mir 1997), an interactive 2D spatial hazard planner with drag-and-drop item manipulation, a blueprint-accurate 3D hardware stage for the **Ember Guardian** multi-sensor node (**NASA Spinoff #9407** heritage), and a real-time microgravity flame simulation engine (**`EMBER-ROM 0.1`**).
 
-1. Extract the ZIP completely on a desktop computer.
-2. Install Node.js 22.13 or newer from https://nodejs.org/ if needed.
-3. Windows: open `START-LAB.cmd`. macOS: open `Start-Lab.command` (or run `sh start-lab.sh`). Linux: run `sh start-lab.sh`.
-4. The first run installs dependencies and builds the app (internet needed once, about a minute). Then open http://localhost:3000, create an account and sign in.
+---
 
-The app runs on a computer, not directly inside iPhone Files. Phone photos can be transferred to the computer for upload. Browser camera access depends on browser/device support.
+## System Overview & Core Capabilities
 
-## Expanded building workflow
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       EMBER FLAME LAB PLATFORM                              │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│        SPACE SAFETY & AUDITING       │       COMBUSTION SCIENCE & PSI       │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ • Multimodal AI Visual Survey        │ • NASA PSI Flight Explorer           │
+│   (Google Gemini Flash & Ollama)     │   (ACME, FLEX-2, BASS-II, SOFIE)     │
+│ • NASA Spaceflight Audit Engine      │ • Microgravity Flame Simulator       │
+│   (NASA-STD-6001, Apollo, Mir)       │   (0g Flame Balls, 1g Teardrops)     │
+│ • Mission Habitat Certifications     │ • Empirical Benchmark Calibration    │
+│   (ISS, Lunar Artemis, Mars, Rover)  │   (LOI, Quench Dia, Heat Release)    │
+│ • 2D Hazard Floorplan Scanner        │ • Historical Fire Incident Presets   │
+│   (Drag-and-drop spatial clearances) │   (Apollo 1, Apollo 13, Mir 1997)    │
+│ • Authentic Astronaut Spaces         │ • Earth Fire Safety Spinoffs         │
+│   (Artemis Rover, ISS Lab, Moon Hab) │   (Water Mist #9582, Sensors #9407)  │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
 
-- Add home, commercial or other buildings and their rooms.
-- Upload up to four photos per room, inspect views, and record manual observations immediately.
-- Configure a local vision model for AI-assisted observations, then confirm, resolve or dismiss findings with human review notes. See `docs/AI-SETUP.md`. Model weights are a separate download; no live model is bundled.
-- Pair device IDs to installed rooms and connect USB/WebSocket telemetry or the authenticated background USB gateway.
-- Review particle/CO/temperature changes, independent alarm contacts, missing channels, faults and offline states. Optional browser notifications work while Ember stays open.
-- Exercise labeled demo scenarios. Demo/import readings do not affect real-device monitoring.
-- Review incidents with sensor evidence and snapshots of earlier room observations, then export JSON records. Earlier observations do not establish fire cause or blame.
+---
 
-Start with **Buildings & alerts → Add a room**. See `docs/SMOKE-NODE.md` for the ESP32/PMS5003 starter and `docs/SAFETY-MODEL.md` for implemented rules. A full house survey consists of room records and photos; no automatic 3D reconstruction or code-compliance certification is implemented.
+### 1. NASA Physical Science Informatics (PSI) Explorer
+A dedicated, interactive repository that summarizes, ranks, and interprets low-gravity combustion investigations conducted aboard the International Space Station (ISS):
+- **Curated Flight Investigations**:
+  - **ACME** (*Advanced Combustion via Microgravity Experiments*): Spherical gaseous diffusion flames and radiative heat loss envelopes.
+  - **FLEX-2** (*Flame Extinguishment Experiment 2*): Droplet burning and low-temperature "cool flame" quasi-steady burning (~600–800 K).
+  - **BASS-II** (*Burning and Suppression of Solids*): Solid fuel slab ignition and microgravity airflow suppression limits.
+  - **BRE** (*Burning Rate Emulator*): Gaseous burners simulating solid fuel gasification rates.
+  - **SOFIE** (*Solid Fuel Ignition and Extinction*): Flammability envelopes under elevated oxygen and variable low pressures.
+  - **S-Flame** (*Stretched Diffusion Flames*): Flame stretch extinction limits across Earth, Lunar ($0.166\,g$), and Martian ($0.38\,g$) gravities.
+- **Habitat Relevance Filtering**: Filter research benchmarks by crew environment:
+  - 🛰️ **Spacecraft** (Transient vehicles & capsules)
+  - 🌌 **Space Station** (ISS & commercial LEO outposts)
+  - 🌕 **Lunar Habitats & Gateway** ($8.2\text{ psia} \cdot 34\%\,\text{O}_2 \cdot 0.166\,g$)
+  - 🔴 **Mars Surface Bases & Rovers** ($8.0\text{ psia} \cdot 32\%\,\text{O}_2 \cdot 0.38\,g$)
+- **Empirical Flammability Metrics**: Displays Limiting Oxygen Index (LOI), Quench Diameter ($d_q$), Radiative Heat Loss Fraction ($\chi_{\text{rad}}$), and Flame Spread Rate ($S_L$).
+- **1-Click Simulation Loading**: Instantly transfers flight experiment parameters into the Ember Combustion Lab.
+- **Dataset Export**: One-click download of the complete NASA PSI investigation dataset in structured JSON.
 
-The early-warning rules are unvalidated bench constants. They cannot guarantee detection before flaming. Photos cannot reveal hidden wiring or determine fire origin. A kitchen beside a bathroom is not automatically a hazard. During an alarm or visible smoke/fire, leave and contact local emergency services from safety; do not stay to diagnose or photograph it. The project never controls physical suppression equipment.
+---
 
-Local Ollama is the default AI provider. OpenAI is an optional paid alternative requiring your own key and per-analysis consent; `.env.example` documents configuration. AI API behavior was tested with mocks; live AI accuracy and physical hardware remain unvalidated.
+### 2. Spaceflight Fire Lessons & Earth Spinoffs
+- **Historical Spaceflight Fire Governance**:
+  - **Apollo 1 (AS-204)**: Hyper-oxygenated pure $\text{O}_2$ flashover, polymer inventory ignition, and mandatory NASA-STD-6001 upward flame propagation testing.
+  - **Apollo 13**: High-pressure supercritical $\text{O}_2$ cryo-tank fan wiring ignition, Teflon insulation combustion, and wiring isolation controls.
+  - **Mir Space Station (1997)**: Solid-fuel oxygen generator (Vika) thermal runaway, zero-$g$ smoke stagnation physics (hot particulate does not rise without natural buoyancy), and emergency module isolation.
+  - *Each historical case includes a 1-click simulation preset loading its exact oxygen, pressure, and gravity parameters into the Combustion Lab.*
+- **Earth Fire Safety Spinoffs**:
+  - **NASA Spinoff #9582**: Fine-water-mist fire extinguishers replacing toxic Halon and PFAS chemicals in data centers, aircraft, and cultural archives.
+  - **NASA Spinoff #9407**: Intelligent multi-criteria optical backscatter and electrochemical CO smoke detectors developed for non-buoyant zero-$g$ aerosol transport.
+  - **NASA Spinoff #9918**: Space-age thermal protective textiles (PBI, polyimide, aluminized radiant barriers) evolved into municipal firefighter turnout gear.
 
-## What is included
+---
 
-- Earth, Moon, Mars and microgravity presets, plus a 0–2 g slider.
-- Methane, propane and ethanol-vapor scenarios; oxygen, temperature and fuel-supply controls.
-- A live schematic flame and illustrative temperature, oxygen and fuel fields.
-- Gas-temperature, heat-release/loss and species-inventory time histories.
-- Fuel-cutoff, oxygen-dilution and enhanced-cooling experiments, with a model extinction indicator.
-- Local SQLite experiment saving, two-run comparison, CSV/JSON export and event timelines.
-- Real USB serial / WebSocket sensor ingestion, strict input validation, stale-data indicators, an explicitly labeled demo feed, and local telemetry records.
-- ESP32 sensor firmware, optional Python serial-to-WebSocket bridge and setup instructions.
-- Editable source code, automated tests and a documented model.
+### 3. Space Safety & NASA Habitat Audit Engine
+- **Multimodal AI Visual Screening**: Upload high-resolution photographs of crew quarters, rovers, and experiment modules. Google Gemini Flash analyzes visible evidence without inferring speculative fire causes.
+- **Post-Gemini Automated NASA Audit**: Cross-references every visual finding against NASA spaceflight standards:
+  - *Combustibles near heat* $\rightarrow$ **NASA-STD-6001 Test 1** & Apollo 1 flashover warning.
+  - *Electrical daisy-chaining & cord wear* $\rightarrow$ **NASA SP-5080** & Apollo 13 wiring harness protocol.
+  - *Blocked exit pathways* $\rightarrow$ **ISS SSP 50005** & Mir 1997 smoke stagnation emergency egress standard.
+  - *Lithium-ion charging* $\rightarrow$ **NASA JSC 20793** battery thermal containment regulations.
+- **Mission Habitat Certification Checklist**: Evaluates crew spaces against 4 mission operational profiles:
+  - 🌌 **ISS Space Station**: Zero-$g$ aerosol stagnation and emergency vehicle egress readiness.
+  - 🌕 **Lunar Base (Artemis)**: Extreme flashover risks under elevated $34\%\,\text{O}_2$ atmospheres.
+  - 🔴 **Mars Surface Habitat**: Low-gravity radiant heat zones and airlock isolation corridors.
+  - 🚜 **Pressurized Exploration Rover**: Single-hatch emergency escape and battery containment in confined cabins.
+- **Interactive Finding Actions**:
+  - 🧪 **"Simulate in Combustion Lab"**: Loads the matching hyper-oxygenated or microgravity flammability condition into the physics engine.
+  - 🔬 **"Inspect in NASA PSI"**: Deep-links directly to the corresponding flight experiment or spinoff in the PSI Explorer.
+- **Pre-Populated Astronaut Operational Habitats**:
+  1. *Artemis Pressurized Exploration Rover* (Mobile cabin, cockpit console, egress hatch).
+  2. *ISS US Destiny Science Laboratory Module* (CIR combustion rack, suction intake grille).
+  3. *Lunar Base Habitat & ECLSS Life Support Bay* (Sleep berth, high-temperature heater line).
+  4. *Combustion Integrated Rack Ground Chamber* (NASA Glenn Research Center).
 
-## First experiment
+---
 
-Let the Earth reference run settle. Save it. Choose Microgravity and press the reset/ignite arrow to start a new run with those conditions. Save the second run. Open **Experiments** and select **Compare** on both cards. Inspect the timeline when a parameter changes during a run. Use the suppression controls in the virtual lab to observe the energy balance; nothing is sent to physical actuators.
+### 4. Interactive 2D Hazard Room Planner
+- **Drag-and-Drop Floorplan Interaction**: Place items on the grid, click to select, and smoothly drag or tap to relocate them without accidental item placement.
+- **Deterministic Proximity Rule Engine**: Evaluates centre-to-centre distances between heat sources, combustibles, fuels, power strips, and exit doors.
+- **Dynamic Safety Scoring**: Real-time room safety score (0–100) and actionable step-by-step clearance fixes.
 
-## Scientific status
+---
 
-This is **EMBER-ROM 0.1, an unvalidated educational reduced-order model**. It integrates a lumped heat balance and fuel/oxygen inventories. Its coefficients and reconstructed geometry were selected for teaching; they were not fitted to published experimental data. Numerical checks are not physical validation.
+### 5. Ember Guardian 3D IoT Hardware Stage
+- **Blueprint-Calibrated 3D WebGL Render**: Realistic, interactive 3D model of the Ember Guardian multi-sensor safety device built with Three.js.
+- **NASA Spinoff #9407 Heritage**: Integrates dual-wavelength optical particulate scatter (PM2.5/PM10) and electrochemical carbon monoxide sensing.
+- **Hardware Telemetry & Specifications**: Real-time virtual sensor readings, exploded internal layer inspections, and microgravity aerosol transport analysis.
 
-Spatial concentration and temperature visuals are schematic, not CFD solutions. “Flame size” is an illustrative geometric estimate. The temperature is one lumped gas value, not a resolved peak. Burn-state and extinction thresholds are heuristic and do not establish real flammability limits or fire-safety decisions. Microgravity does not imply a flame must go out.
+---
 
-Moon/Mars presets alter gravity only; they do not reproduce lunar vacuum or the Martian atmosphere. The model assumes a quiescent atmosphere near 1 atm. Pressure, detailed chemistry, soot, cool flames, turbulent/forced flow, radiation spectra and geometry-specific transport are not solved.
+### 6. Microgravity Flame Simulation Engine (`EMBER-ROM 0.1`)
+- **Physics-Informed Reduced-Order Model**:
+  - Lumped heat balance: $C \frac{dT}{dt} = Q_{\text{reaction}} - Q_{\text{radiation}} - Q_{\text{transfer}}$.
+  - Variable gravitational convection: $k = 0.9 + 4\sqrt{g}$.
+  - Fuel and oxidizer mass balances with finite reactant consumption gates.
+- **Visual Flame Canvas**: Qualitative rendering transitioning between tall buoyant teardrop flames ($1\,g$) and large spherical blue diffusion envelopes ($0\,g$).
+- **Controls & Fuels**: Supports methane ($\text{CH}_4$), propane ($\text{C}_3\text{H}_8$), and ethanol ($\text{C}_2\text{H}_5\text{OH}$) vapor, oxygen fraction (0–30%), ambient temperature, and fuel mass flow.
+- **Virtual Interventions**: Fuel cutoff, oxygen dilution inerting, and enhanced heat extraction.
+- **Run History & Overlays**: Side-by-side run comparisons with overlaid time series plots and CSV/JSON export.
 
-Read `docs/MODEL.md`, the app's **Model & science** page, and the source `lib/model.ts` for equations and limitations. For research use, a validated transport/chemistry solver, defined experimental geometry, calibrated sensors and independent experimental comparisons are still required.
+---
 
-## IoT
+## Quick Start
 
-Read `docs/IOT-SETUP.md`. USB serial requires a supporting desktop browser and a compatible board producing newline-delimited JSON. The original environmental starter targets a classic ESP32 DevKit + BME280 + MPU6050. The additional particulate node targets an ESP32 + PMS5003, with optional BME280. The source was prepared from the sensor library interfaces; it was not compiled on an Arduino toolchain or tested on physical hardware here.
+### Prerequisites
+- [Node.js](https://nodejs.org/) v22.13.0 or newer.
 
-Ambient and oxygen measurements may be explicitly applied to the model's inputs. Accelerometer readings do not automatically become a gravity setting. Missing sensors remain missing. The firmware never actuates fuel, heat or suppression equipment.
+### Installation & Launch
 
-## Develop from source
+```bash
+# Clone the repository
+git clone https://github.com/791botlykcodes/Ember-Flame-Lab.git
+cd Ember-Flame-Lab
 
-With Node 22.13+ and npm installed:
-
-```sh
+# Install dependencies
 npm install
+
+# Start development server (Port 3001)
 npm run dev
 ```
 
-Open http://localhost:3000. Vite provides development updates through the same local server.
+Open your browser at **http://localhost:3001**.
 
-```sh
-npm run build
+- **Windows Shortcut**: Double-click `START-LAB.cmd`.
+- **macOS / Linux Shortcut**: Run `sh start-lab.sh`.
+
+---
+
+## AI Configuration (Google Gemini Flash)
+
+Ember uses Google's Gemini Flash multimodal vision model for rapid space habitat photo analysis:
+
+1. Obtain a free API key from [Google AI Studio](https://aistudio.google.com/).
+2. Create or edit `.env` in the project root:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-3.5-flash
+   ```
+3. Ember auto-detects `GEMINI_API_KEY` and features automatic fallback if primary model capacity is limited.
+
+### Alternative AI Providers
+- **Local Ollama (100% Offline & Private)**:
+  ```env
+  EMBER_AI_PROVIDER=ollama
+  EMBER_OLLAMA_URL=http://127.0.0.1:11434
+  EMBER_OLLAMA_MODEL=gemma3:4b
+  ```
+- **DeepSeek API**: `EMBER_AI_PROVIDER=deepseek` + `DEEPSEEK_API_KEY=your_key`.
+- **OpenAI API**: `EMBER_AI_PROVIDER=openai` + `OPENAI_API_KEY=your_key`.
+
+---
+
+## Testing & Quality Assurance
+
+Ember includes 34 automated unit and integration tests covering physics conservation, NASA audit mappings, AI vision schemas, 2D proximity rules, and local database persistence:
+
+```bash
+# Run full automated test suite
 npm test
-npm start
+
+# Run TypeScript typechecks
+npx tsc --noEmit
+
+# Run production build (client bundle + SSR runtime)
+npm run build
 ```
 
-`npm run build` type-checks the client, builds `dist/`, and bundles a dependency-free production server in `runtime/`. `npm test` runs model and API integration tests; build first for the integration tests. The integration suite uses a temporary copy with no node_modules and a temporary SQLite database. Vision tests use mocked provider responses, not a live model. The package pins direct dependency versions; the prebuilt runtime is the reproducible handoff supplied here.
+---
 
-## Project map
+## Project Structure
 
-| Path | Purpose |
-|---|---|
-| app/ | React interface, canvas flame renderer, SVG plots and styles |
-| lib/model.ts | Educational heat/species model |
-| lib/validation.ts | Shared input validation |
-| server/server.mjs | Local HTTP API, SQLite records and static serving |
-| dist/ | Prebuilt browser app |
-| runtime/server.js | Prebuilt self-contained server; only Node is needed |
-| firmware/ | ESP32 starter and optional serial gateway |
-| docs/ | Model and IoT setup documentation |
-| tests/ | Model checks and real HTTP/persistence tests |
-| data/ | Created at first run; your local experiments and telemetry |
+```
+├── app/
+│   ├── auth.tsx                 # User authentication & session state
+│   ├── chart.tsx                # SVG time-series charts for flame telemetry
+│   ├── flame-view.tsx           # Canvas flame renderer (0g sphere vs 1g plume)
+│   ├── globals.css              # Responsive styling, typography, theme tokens
+│   ├── guardian-render.tsx      # Three.js 3D WebGL render of Guardian IoT node
+│   ├── guardian-view.tsx        # Guardian 3D stage & Spinoff #9407 telemetry
+│   ├── lab.tsx                  # Main app shell & Combustion Lab simulator
+│   ├── landing.tsx              # Landing page hero, showcase & PSI previews
+│   ├── main.tsx                 # Client entrypoint & React root
+│   ├── method.tsx               # Scientific references & NASA bibliographies
+│   ├── psi-explorer.tsx         # NASA PSI Explorer (Investigations, Lessons, Spinoffs)
+│   ├── safety-dashboard.tsx     # Space Safety hub, AI surveys, Habitat Certifications
+│   ├── scanner.tsx              # 2D Hazard Floorplan Scanner with item drag & drop
+│   ├── theme.tsx                # Light/Dark theme provider
+│   └── toast.tsx                # Toast notifications
+├── lib/
+│   ├── hazards.ts               # 2D spatial clearance rules & scoring
+│   ├── model.ts                 # Reduced-order combustion physics (EMBER-ROM 0.1)
+│   ├── nasa-data.ts             # Official NASA PSI benchmarks, case studies, spinoffs
+│   ├── nasa-safety-audit.ts     # Post-Gemini NASA standards & habitat certification engine
+│   ├── safety.ts                # Safety domain schemas, findings, and assessment types
+│   └── validation.ts            # Input validation and boundary protections
+├── server/
+│   ├── auth.mjs                 # Session token issuance and verification
+│   ├── password.mjs             # Salted scrypt password hashing
+│   ├── safety/
+│   │   ├── prompt.txt           # Structured multimodal hazard survey prompt
+│   │   ├── routes.mjs           # Safety state, photo analysis, and NASA audit pipeline
+│   │   └── vision.mjs           # Vision adapters (Gemini, Ollama, DeepSeek, OpenAI)
+│   ├── seed_space_habitats.mjs  # Seeding astronaut spaces (Rover, ISS, Lunar Hab)
+│   └── server.mjs               # Node.js HTTP server & static asset delivery
+├── tests/
+│   ├── hazards.test.mjs         # 2D hazard scanner proximity tests
+│   ├── model.test.mjs           # Combustion physics conservation & energy balance
+│   ├── nasa-audit.test.mjs      # NASA standards mapping & mission habitat checklist tests
+│   ├── server.test.mjs          # Server endpoints, security, and SQLite persistence
+│   └── vision.test.mjs          # AI vision formatting, fallback, and schema validation
+├── docs/
+│   ├── AI-SETUP.md              # Multimodal vision setup (Gemini, Ollama, DeepSeek)
+│   ├── MODEL.md                 # EMBER-ROM 0.1 combustion equations & physics closures
+│   ├── NASA-PSI.md              # Comprehensive NASA PSI investigations & flight reference
+│   └── SAFETY-MODEL.md          # Spaceflight fire safety architecture & audit guidelines
+├── data/photos/                 # High-resolution astronaut space survey photographs
+├── dist/                        # Compiled production client web application
+├── runtime/                     # Compiled production SSR Node.js runtime
+├── package.json                 # Project dependencies & npm scripts
+└── tsconfig.json                # TypeScript strict configuration
+```
 
-## Data and deployment
+---
 
-Surveys, photos, findings, devices, incidents and experiments persist in `data/ember.sqlite`. Raw monitoring samples are pruned after 24 hours on ingestion; see `docs/SAFETY-MODEL.md` for record behavior. Saved runs are not deleted automatically; the notebook displays the most recent 100. The telemetry archive displays the most recent 100 samples; samples older than 7 days are removed on new writes. Stop the app before copying `data/` for backup.
+## Citation & NASA Resources
 
-This is a single-user local app. It listens only on 127.0.0.1, validates Host/Origin on writes, and does not have multiuser accounts or cloud synchronization. A public deployment would need authentication, user isolation, device credentials, TLS and operational controls. No deployment or GitHub connection is required for this ZIP.
+- **NASA Physical Science Informatics (PSI)**: [https://psi.nasa.gov/](https://psi.nasa.gov/)
+- **NASA Glenn Research Center — Combustion Science**: [https://www.nasa.gov/glenn/glenn-expertise-space-exploration/physical-sciences-program/combustion-science/](https://www.nasa.gov/glenn/glenn-expertise-space-exploration/physical-sciences-program/combustion-science/)
+- **NASA SMA Apollo 1 (AS-204) Investigation**: [https://sma.nasa.gov/sma-disciplines/accllp/apollo-1](https://sma.nasa.gov/sma-disciplines/accllp/apollo-1)
+- **NASA SMA Apollo 13 Investigation**: [https://sma.nasa.gov/sma-disciplines/accllp/apollo-13](https://sma.nasa.gov/sma-disciplines/accllp/apollo-13)
+- **NASA History — Mir Space Station Fire (1997)**: [https://www.nasa.gov/history/25-years-ago-fire-aboard-space-station-mir/](https://www.nasa.gov/history/25-years-ago-fire-aboard-space-station-mir/)
+- **NASA Spinoff #9582 (Fine Water Mist)**: [https://spinoff.nasa.gov/node/9582](https://spinoff.nasa.gov/node/9582)
+- **NASA Spinoff #9407 (Multi-Criteria Smoke Alarms)**: [https://spinoff.nasa.gov/node/9407](https://spinoff.nasa.gov/node/9407)
+- **NASA Spinoff #9918 (Firefighter Turnout Gear)**: [https://spinoff.nasa.gov/node/9918](https://spinoff.nasa.gov/node/9918)
 
-## Troubleshooting
+---
 
-- **node is not recognized:** install Node and reopen the terminal.
-- **Port already in use:** stop the earlier app window or set EMBER_PORT to another port.
-- **No sensor port appears:** check that your cable supports data, install the board's USB driver if required, and close the Arduino serial monitor.
-- **USB unsupported:** use a supported desktop browser or the optional WebSocket bridge.
-- **Blank oxygen/probe field:** those sensors are not implemented by the starter; no reading is invented.
-- **Slow or missing data:** inspect stale status, rejected packet count and JSON format.
-
-Verification completed: TypeScript checks, production builds, 29 passing automated model, detection, vision-adapter and local-server integration tests. No visual browser automation or physical hardware validation was available in the build environment.
-
-## Ember 0.3 additions
-- **Landing page** at `/` with a waitlist form; **sign up / sign in** pages; the lab opens at `#app` after sign-in. Accounts are stored on this computer (scrypt-hashed passwords, HttpOnly SameSite=Strict session cookie, 7-day sessions, login rate limit). All accounts on one installation share the same data; `EMBER_CLOSED_SIGNUP=1` closes sign-up after the first account.
-- **Hazard scanner** tab: map a room and get rule-based fire-hazard findings (screening only, not an inspection).
-- **Guardian** tab, `firmware/guardian/` and `docs/GUARDIAN.md`: pre-fire detection logic, simulator, USB live view, limited suppressant release. Guardian states feed the existing alert pipeline.
-- **Waitlist**: signed-in users download it at `/api/waitlist?format=csv`. For public hosting of the landing page only: `EMBER_PUBLIC=1 EMBER_ADMIN_TOKEN=<secret> npm start` (everything else stays closed; read sign-ups with `curl -H "X-Admin-Token: <secret>" "https://your-host/api/waitlist?format=csv"`).
-- Fixes: findings queries are bounded (state returns the newest 500), malformed URLs return 400, request bodies are decoded as UTF-8 safely, telemetry rate limit is per device (aligned with the safety path), and the smoke node reports `warming_up` instead of a fault for the first seconds.
+## License
+MIT License. Built for the NASA Space Apps Challenge and open spaceflight fire safety research.

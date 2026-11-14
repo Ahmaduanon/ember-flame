@@ -6,14 +6,15 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { experimentSchema, telemetrySchema, waitlistSchema } from '../lib/validation.ts';
+import { experimentSchema, waitlistSchema } from '../lib/validation.ts';
+import { NASA_FLIGHT_DATASETS, compareWithNasa, matchNasaDataset } from '../lib/nasa-data.ts';
 import { installAuth } from './auth.mjs';
 import { installSafety } from './safety/routes.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 try { loadEnvFile(path.join(root,'.env')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 const port = Number(process.env.EMBER_PORT || process.env.PORT || 3000);
-// EMBER_PUBLIC=1 serves only the landing page and waitlist; lab, account and telemetry APIs stay closed.
+// EMBER_PUBLIC=1 serves only the landing page and waitlist; lab and account APIs stay closed.
 const publicMode = process.env.EMBER_PUBLIC === '1';
 const rate = new Map();
 const same = (a,b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
@@ -22,9 +23,8 @@ mkdirSync(dataDir,{recursive:true});
 const db = new DatabaseSync(path.join(dataDir,'ember.sqlite'));
 db.exec(`PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS experiments(id TEXT PRIMARY KEY,title TEXT NOT NULL,createdAt INTEGER NOT NULL,payload TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS telemetry(id TEXT PRIMARY KEY,receivedAt INTEGER NOT NULL,source TEXT NOT NULL,payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS waitlist(id TEXT PRIMARY KEY,createdAt INTEGER NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,role TEXT NOT NULL,note TEXT NOT NULL DEFAULT '');
-CREATE INDEX IF NOT EXISTS telemetry_received ON telemetry(receivedAt);`);
+DROP TABLE IF EXISTS telemetry;`);
 const safety=installSafety(db);
 const auth=installAuth(db,{secureCookie:process.env.EMBER_SECURE_COOKIE==='1'});
 const dev=process.argv.includes('--dev');
@@ -35,7 +35,7 @@ const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=
 const server=http.createServer(async(req,res)=>{
   try {
     // This is a single-user localhost application, not a public multiuser server.
-    const validHosts=[`localhost:${port}`,`127.0.0.1:${port}`];
+    const validHosts=[`localhost:${port}`,`127.0.0.1:${port}`,`[::1]:${port}`];
     if(!publicMode&&!validHosts.includes(req.headers.host||''))return json(res,403,{error:'This application accepts localhost connections only.'});
     const url=new URL(req.url,`http://${req.headers.host}`);
     if(req.method!=='GET' && req.method!=='HEAD'){
@@ -70,9 +70,30 @@ const server=http.createServer(async(req,res)=>{
       }
     }
     if(await auth.handle(req,res,url,{json,body}))return;
-    if(url.pathname.startsWith('/api/')&&!['/api/health','/api/safety/device-telemetry'].includes(url.pathname)&&!session)return json(res,401,{error:'Sign in required.'});
+    if(url.pathname.startsWith('/api/')&&!['/api/health','/api/nasa/benchmarks','/api/nasa/calibrate'].includes(url.pathname)&&!session)return json(res,401,{error:'Sign in required.'});
     if(await safety(req,res,url,{json,body}))return;
     if(url.pathname==='/api/health')return json(res,200,{ok:true,storage:'SQLite',mode:publicMode?'public':'local'});
+    if(url.pathname==='/api/nasa/benchmarks'){
+      const id = url.searchParams.get('id');
+      if (id) {
+        const ds = NASA_FLIGHT_DATASETS[id];
+        if (!ds) return json(res, 404, { error: 'NASA benchmark dataset not found.' });
+        return json(res, 200, ds);
+      }
+      return json(res, 200, Object.values(NASA_FLIGHT_DATASETS));
+    }
+    if(url.pathname==='/api/nasa/calibrate'){
+      if(req.method!=='POST') return json(res, 405, { error: 'POST required for calibration comparison.' });
+      const raw = await body(req, 100000);
+      if(!raw || typeof raw !== 'object') return json(res, 400, { error: 'Invalid payload.' });
+      const dataset = raw.datasetId ? NASA_FLIGHT_DATASETS[raw.datasetId] : matchNasaDataset(raw.settings || raw);
+      if(!dataset) return json(res, 404, { error: 'No matching NASA dataset found.' });
+      const temp = Number(raw.temperature) || 1600;
+      const size = Number(raw.size) || 18;
+      const time = Number(raw.time) || 30;
+      const comparison = compareWithNasa(temp, size, time, dataset);
+      return json(res, 200, { dataset: { id: dataset.id, name: dataset.name, mission: dataset.mission, radFrac: dataset.radiationFraction }, comparison });
+    }
     if(url.pathname==='/api/runs'){
       if(req.method==='GET')return json(res,200,db.prepare('SELECT * FROM experiments ORDER BY createdAt DESC LIMIT 100').all().map(r=>({...r,payload:JSON.parse(r.payload)})));
       if(req.method==='POST'){
@@ -87,19 +108,6 @@ const server=http.createServer(async(req,res)=>{
         db.prepare('DELETE FROM experiments WHERE id=?').run(id);return json(res,200,{ok:true});
       }
     }
-    if(url.pathname==='/api/telemetry'){
-      if(req.method==='GET')return json(res,200,db.prepare('SELECT * FROM telemetry ORDER BY receivedAt DESC LIMIT 100').all().map(({payload,...r})=>({...r,sample:JSON.parse(payload)})));
-      if(req.method==='POST'){
-        const parsed=telemetrySchema.safeParse(await body(req,5000));
-        if(!parsed.success)return json(res,400,{error:'Invalid sensor sample. Check the documented JSON format.'});
-        const latest=db.prepare("SELECT receivedAt FROM telemetry WHERE json_extract(payload,'$.device_id')=? ORDER BY receivedAt DESC LIMIT 1").get(parsed.data.sample.device_id);
-        const receivedAt=Date.now();
-        if(latest&&receivedAt-Number(latest.receivedAt)<500)return json(res,429,{error:'Record at most two samples per second per device.'});
-        const id=crypto.randomUUID();db.prepare('INSERT INTO telemetry VALUES(?,?,?,?)').run(id,receivedAt,parsed.data.source,JSON.stringify(parsed.data.sample));
-        db.prepare('DELETE FROM telemetry WHERE receivedAt < ?').run(receivedAt-7*86400000);
-        return json(res,201,{id,receivedAt});
-      }
-    }
     if(url.pathname.startsWith('/api/'))return json(res,404,{error:'Endpoint not found.'});
     if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Method not allowed.'});
     if(vite)return vite.middlewares(req,res,()=>json(res,404,{error:'Not found.'}));
@@ -109,7 +117,7 @@ const server=http.createServer(async(req,res)=>{
     if(!file.startsWith(base+path.sep))return json(res,403,{error:'Invalid path.'});
     try{
       if(!(await stat(file)).isFile())throw new Error('not a file');
-      const content=await readFile(file);res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Permissions-Policy':'serial=(self)'});res.end(req.method==='HEAD'?undefined:content);
+      const content=await readFile(file);res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff'});res.end(req.method==='HEAD'?undefined:content);
     }catch{return json(res,404,{error:'File not found. Run npm run build before starting the app.'});}
   }catch(error){json(res,error.status||500,{error:error.status?error.message:'The local server could not complete this request.'});console.error(error.message);}
 });

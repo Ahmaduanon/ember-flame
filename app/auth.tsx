@@ -1,6 +1,22 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Flame, Shield, ArrowRight, UserCheck } from 'lucide-react';
+import { useTheme } from './theme';
 
-type User = { id: string; name: string; email: string };
+export type User = { id: string; name: string; email: string };
+
+interface AuthContextType {
+  user: User | null;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  logout: async () => {},
+});
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const signup = mode === 'signup';
@@ -8,10 +24,13 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [pub, setPub] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+
   useEffect(() => {
     fetch('/api/health').then(r => r.json()).then(j => setPub(j.mode === 'public')).catch(() => {});
     fetch('/api/auth/me').then(r => { if (r.ok) location.hash = '#app'; }).catch(() => {});
   }, []);
+
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setErr('');
     try {
@@ -21,27 +40,86 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
       location.hash = '#app';
     } catch (x: any) { setErr(x.message); setBusy(false); }
   }
-  return <div className="lp">
-    <header className="lp-top"><b>Ember</b><nav><a href="#">Back to site</a></nav></header>
-    <section className="lp-sec lp-wait">
-      <h2>{signup ? 'Create your account' : 'Sign in to Ember'}</h2>
-      {pub ? <p className="lp-lead">Accounts are not available on the public site. Run Ember on your own computer to use the lab.</p> : <>
-        <p className="lp-lead">{signup ? 'Accounts live on this computer. Use at least 10 characters for the password.' : 'Welcome back.'}</p>
-        <form onSubmit={submit}>
-          {signup && <label>Name<input required maxLength={80} autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })}/></label>}
-          <label>Email<input required type="email" maxLength={120} autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })}/></label>
-          <label>Password<input required type="password" minLength={signup ? 10 : 1} maxLength={128} autoComplete={signup ? 'new-password' : 'current-password'} value={f.password} onChange={e => setF({ ...f, password: e.target.value })}/></label>
-          <button className="lp-btn" disabled={busy}>{busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}</button>
-          {err && <p className="lp-err" role="alert">{err}</p>}
-        </form>
-        <p>{signup ? <>Already have an account? <a href="#login">Sign in</a></> : <>New here? <a href="#signup">Create an account</a></>}</p>
-      </>}
-    </section>
-  </div>;
+
+  return (
+    <div className="lp">
+      <header className="lp-top">
+        <a className="lp-brand" href="#">
+          <span style={{ color: 'var(--flame)', display: 'flex' }}><Flame size={24} /></span>
+          <b>ember</b>
+        </a>
+        <nav>
+          <button className="theme-toggle-btn" onClick={toggleTheme}>
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+          <a href="#">Back to site</a>
+        </nav>
+      </header>
+
+      <section className="auth-page-container">
+        <div className="auth-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--mint)' }}>
+            <Shield size={18} />
+            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>Local Security</span>
+          </div>
+          <h2>{signup ? 'Create your account' : 'Sign in to Ember'}</h2>
+          {pub ? (
+            <p className="lp-lead">Accounts are not available on the public site. Run Ember on your own computer to use the lab.</p>
+          ) : (
+            <>
+              <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '20px' }}>
+                {signup ? 'Accounts live on this computer. Use at least 10 characters for the password.' : 'Access your space safety surveys and combustion experiments.'}
+              </p>
+              <form onSubmit={submit} style={{ display: 'grid', gap: '14px' }}>
+                {signup && (
+                  <label style={{ display: 'grid', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
+                    Name
+                    <input required maxLength={80} autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
+                  </label>
+                )}
+                <label style={{ display: 'grid', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Email
+                  <input required type="email" maxLength={120} autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} />
+                </label>
+                <label style={{ display: 'grid', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Password
+                  <input required type="password" minLength={signup ? 10 : 1} maxLength={128} autoComplete={signup ? 'new-password' : 'current-password'} value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+                </label>
+                
+                <button className="lp-btn" disabled={busy} style={{ width: '100%', marginTop: '6px' }}>
+                  {busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}
+                  <ArrowRight size={16} />
+                </button>
+
+                {!signup && (
+                  <div style={{ marginTop: '10px', padding: '12px 14px', background: 'var(--chip-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Demo: <code>admin@ember.local</code></span>
+                    <button
+                      type="button"
+                      className="lp-btn lp-btn-sm"
+                      style={{ padding: '4px 10px', fontSize: '11px', background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                      onClick={() => setF({ ...f, email: 'admin@ember.local', password: 'ember-password-123' })}
+                    >
+                      Fill demo
+                    </button>
+                  </div>
+                )}
+                {err && <p className="lp-err" role="alert">{err}</p>}
+              </form>
+              <p style={{ marginTop: '18px', fontSize: '13px', color: 'var(--muted)' }}>
+                {signup ? <>Already have an account? <a href="#login" style={{ color: 'var(--mint)', fontWeight: 600 }}>Sign in</a></> : <>New here? <a href="#signup" style={{ color: 'var(--mint)', fontWeight: 600 }}>Create an account</a></>}
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+
   useEffect(() => {
     let live = true;
     const check = () => fetch('/api/auth/me').then(async r => {
@@ -49,10 +127,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (r.ok) setUser((await r.json()).user); else location.hash = '#login';
     }).catch(() => {});
     check();
-    const id = setInterval(check, 60000); // notice an expired session within a minute
+    const id = setInterval(check, 60000);
     return () => { live = false; clearInterval(id); };
   }, []);
-  async function out() { await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}); location.hash = '#login'; }
+
+  async function out() {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    location.hash = '#login';
+  }
+
   if (!user) return <div className="auth-wait" role="status">Loading…</div>;
-  return <>{children}<div className="auth-chip"><span>{user.name}</span><button onClick={out}>Sign out</button></div></>;
+
+  return (
+    <AuthContext.Provider value={{ user, logout: out }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

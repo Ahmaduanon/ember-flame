@@ -2,6 +2,8 @@
  * Integrates fuel and oxygen inventories (mg) and gas temperature (K).
  * Not CFD: no pressure/velocity solution, detailed chemistry, soot or cool flames.
  */
+import type { NasaCalibrationDataset } from './nasa-data';
+
 export type Fuel = 'methane' | 'propane' | 'ethanol';
 export type Settings = { gravity: number; oxygen: number; ambient: number; flow: number; fuel: Fuel };
 export type Intervention = 'none' | 'cutoff' | 'dilution' | 'cooling';
@@ -28,7 +30,7 @@ export function oxygenCapacity(percent: number) {
 export function initialState(settings: Settings = DEFAULTS): SimState {
   return { time: 0, temperature: 1300, oxygenMass: oxygenCapacity(settings.oxygen), fuelMass: 0.24, burning: true, weakTime: 0, release: 0, loss: 0, radiation: 0, convection: 0, size: 0, rate: 0, status: 'stable' };
 }
-export function step(state: SimState, p: Settings, action: Intervention, dt = 0.02): SimState {
+export function step(state: SimState, p: Settings, action: Intervention, dt = 0.02, dataset?: NasaCalibrationDataset): SimState {
   dt = clamp(dt, 0.001, 0.025);
   const ambient = p.ambient + 273.15;
   const grav = Math.sqrt(clamp(p.gravity, 0, 2));
@@ -45,16 +47,29 @@ export function step(state: SimState, p: Settings, action: Intervention, dt = 0.
   o = Math.max(0, o - reacted * fuel.stoich);
   const actualRate = reacted / dt;
   const release = actualRate * fuel.heat;
+  const radFrac = dataset ? dataset.radiationFraction : 0.12;
   const area = 0.00020 * (1 + 0.65 / (1 + 8 * grav)) * Math.sqrt(p.flow / 0.85);
-  const radiation = 0.12 * 5.670374419e-8 * area * Math.max(0, Math.pow(state.temperature, 4) - Math.pow(ambient, 4));
+  const radiation = radFrac * 5.670374419e-8 * area * Math.max(0, Math.pow(state.temperature, 4) - Math.pow(ambient, 4));
   const convection = (0.009 + area * (7 + 7 * grav)) * Math.max(0, state.temperature - ambient) * (action === 'cooling' ? 4 : 1);
   const loss = radiation + convection;
   const temperature = Math.max(ambient, state.temperature + (release - loss) * dt / 0.045);
   const weakTime = temperature < 700 || actualRate < 0.015 ? state.weakTime + dt : 0;
   const burning = state.burning && weakTime < 1.2;
   const status = !burning ? 'extinguished' : temperature < 1100 || actualRate < p.flow * 0.28 ? 'weak' : 'stable';
-  const size = burning ? 17 * Math.sqrt(Math.max(0, actualRate) / 0.65) * (1 + 0.45 / (1 + 5 * grav)) : 0;
+  const baseSize = dataset ? dataset.effectiveQuenchDiameterMm : 17;
+  const size = burning ? baseSize * Math.sqrt(Math.max(0, actualRate) / 0.65) * (1 + 0.45 / (1 + 5 * grav)) : 0;
   return { time: state.time + dt, temperature, oxygenMass: o, fuelMass: f, burning, weakTime, release, loss, radiation, convection, size, rate: actualRate, status };
+}
+export function computeInstantaneousState(state: SimState, p: Settings, action: Intervention = 'none', dataset?: NasaCalibrationDataset): SimState {
+  if (!state.burning) {
+    const ambient = p.ambient + 273.15;
+    return { ...state, temperature: ambient, release: 0, loss: 0, size: 0, rate: 0, status: 'extinguished' };
+  }
+  let s = { ...state };
+  for (let i = 0; i < 4; i++) {
+    s = step(s, p, action, 0.025, dataset);
+  }
+  return { ...s, time: state.time };
 }
 export function sample(s: SimState): Point {
   const {time, temperature, release, loss, oxygenMass, fuelMass, size} = s;
