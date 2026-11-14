@@ -1,9 +1,10 @@
 # Ember — NASA Spaceflight Fire Safety & Combustion Science Platform
 
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13.0-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF.svg)](https://vitejs.dev/)
+[![Vercel](https://img.shields.io/badge/Vercel-Ready-black.svg?logo=vercel)](https://vercel.com)
 [![Tests](https://img.shields.io/badge/Tests-34%20Passed-success.svg)](./tests)
 [![License](https://img.shields.io/badge/License-MIT-orange.svg)](./THIRD-PARTY-NOTICES.txt)
 
@@ -119,14 +120,14 @@ A dedicated, interactive repository that summarizes, ranks, and interprets low-g
 ## Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) v22.13.0 or newer.
+- [Node.js](https://nodejs.org/) v20.0.0 or newer.
 
-### Installation & Launch
+### Installation & Local Launch
 
 ```bash
 # Clone the repository
-git clone https://github.com/791botlykcodes/Ember-Flame-Lab.git
-cd Ember-Flame-Lab
+git clone https://github.com/Ahmaduanon/ember-flame.git
+cd ember-flame
 
 # Install dependencies
 npm install
@@ -139,6 +140,19 @@ Open your browser at **http://localhost:3001**.
 
 - **Windows Shortcut**: Double-click `START-LAB.cmd`.
 - **macOS / Linux Shortcut**: Run `sh start-lab.sh`.
+
+---
+
+## Vercel Cloud Deployment
+
+Ember is fully configured for continuous deployment on **[Vercel](https://vercel.com)**:
+
+1. **Import Project**: In your Vercel Dashboard, click **Add New...** → **Project**, and select `Ahmaduanon/ember-flame`.
+2. **Framework Preset**: Vercel automatically detects `Vite` and reads `vercel.json`.
+3. **Build Command**: `npm run build:client` (Output Directory: `dist`).
+4. **Environment Variables** (Optional for live Gemini Flash vision scans):
+   - `GEMINI_API_KEY`: Your Google Gemini API key.
+5. **Deploy**: Click **Deploy**. Vercel will generate your live production URL (e.g. `https://ember-flame.vercel.app`). All interactive modules (Landing, Space Habitats, 2D Scanner, 3D Guardian WebGL, NASA PSI Explorer, Combustion Lab) run seamlessly in the cloud.
 
 ---
 

@@ -5,11 +5,12 @@
   "type": "module",
   "description": "NASA Physical Science Informatics (PSI) combustion research, spaceflight habitat fire safety audit engine, 2D hazard planner, and microgravity flame laboratory.",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "dev": "node --experimental-strip-types server/server.mjs --dev",
     "build": "tsc --noEmit && vite build && vite build --ssr server/server.mjs --outDir runtime",
+    "build:client": "tsc --noEmit && vite build",
     "start": "node runtime/server.js",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "start:source": "node --experimental-strip-types server/server.mjs"

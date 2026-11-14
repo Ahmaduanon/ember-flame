@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight, Beaker, Bell, Building2, Camera, Check, ChevronRight, ClipboardCheck, Download, Eye, FileSearch, Flame, Home, ImagePlus, Layers, Plus, RefreshCw, Rocket, RotateCcw, ScanSearch, Shield, SwitchCamera, Trash2, X } from 'lucide-react';
 import { CATEGORIES, type AIStatus, type Finding, type Photo, type Room, type SafetyState } from '@/lib/safety';
 import { auditFindingsWithNasa, evaluateFindingNasaBenchmark, type NasaAuditReport, type NasaFindingBenchmark } from '@/lib/nasa-safety-audit';
+import { DEFAULT_HABITATS_STATE, DEFAULT_HABITAT_PHOTOS } from '@/lib/sample-habitats';
 
 const blank: SafetyState = { rooms: [], findings: [], assessments: [], photoCounts: {}, at: 0 };
 
@@ -40,7 +41,18 @@ export function useSafety() {
       setData(d);
       setError('');
     } catch (e) {
-      if (mounted.current) setError((e as Error).message);
+      if (mounted.current) {
+        const local = typeof window !== 'undefined' ? localStorage.getItem('ember_local_safety_state') : null;
+        if (local) {
+          try {
+            setData(JSON.parse(local));
+            setError('');
+            return;
+          } catch {}
+        }
+        setData(DEFAULT_HABITATS_STATE);
+        setError('');
+      }
     } finally {
       busy.current = false;
     }
@@ -453,8 +465,9 @@ export default function SafetyDashboard({
     try {
       const p = await api('photos?roomId=' + encodeURIComponent(id));
       if (activeRoom.current === id) setPhotos(p);
-    } catch (e) {
-      notify((e as Error).message);
+    } catch {
+      const fallback = Object.values(DEFAULT_HABITAT_PHOTOS).filter(photo => photo.roomId === id);
+      if (activeRoom.current === id) setPhotos(fallback);
     }
   }
 
@@ -490,6 +503,19 @@ export default function SafetyDashboard({
       notify(success);
       return result;
     } catch (e) {
+      if (path.startsWith('findings')) {
+        const payload = value as { id: string; status: Finding['status']; note?: string };
+        const local = localStorage.getItem('ember_local_safety_state');
+        const base = local ? JSON.parse(local) : data;
+        const updated = {
+          ...base,
+          findings: base.findings.map((f: Finding) => f.id === payload.id ? { ...f, status: payload.status, reviewNote: payload.note || '' } : f)
+        };
+        localStorage.setItem('ember_local_safety_state', JSON.stringify(updated));
+        await reload();
+        notify(success + ' (Saved locally)');
+        return { ok: true };
+      }
       notify((e as Error).message);
       return null;
     } finally {

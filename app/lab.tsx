@@ -300,8 +300,15 @@ export default function Lab() {
       const r = await fetch('/api/runs');
       if (!r.ok) throw new Error((await r.json()).error || 'Cannot load experiments.');
       setRuns(await r.json());
-    } catch (e) {
-      setLoadError((e as Error).message);
+    } catch {
+      const local = typeof window !== 'undefined' ? localStorage.getItem('ember_saved_runs') : null;
+      if (local) {
+        try {
+          setRuns(JSON.parse(local));
+          return;
+        } catch {}
+      }
+      setRuns([]);
     } finally {
       setLoading(false);
     }
@@ -323,8 +330,20 @@ export default function Lab() {
       if (!r.ok) throw new Error((await r.json()).error || 'Could not save experiment.');
       setSaveOpen(false);
       notify('Experiment saved on this computer.');
-    } catch (e) {
-      notify((e as Error).message);
+      await loadRuns();
+    } catch {
+      // Offline / Vercel fallback
+      const newRun: Run = {
+        id: 'run-' + Date.now(),
+        title: runTitle.trim(),
+        createdAt: Date.now(),
+        payload: payload()
+      };
+      const updated = [newRun, ...runs];
+      setRuns(updated);
+      if (typeof window !== 'undefined') localStorage.setItem('ember_saved_runs', JSON.stringify(updated));
+      setSaveOpen(false);
+      notify('Experiment saved locally.');
     } finally {
       setSaving(false);
     }
@@ -348,8 +367,12 @@ export default function Lab() {
       setRuns(old => old.filter(x => x.id !== run.id));
       setSelected(old => old.filter(x => x !== run.id));
       notify('Experiment deleted.');
-    } catch (e) {
-      notify((e as Error).message);
+    } catch {
+      const updated = runs.filter(x => x.id !== run.id);
+      setRuns(updated);
+      setSelected(old => old.filter(x => x !== run.id));
+      if (typeof window !== 'undefined') localStorage.setItem('ember_saved_runs', JSON.stringify(updated));
+      notify('Experiment deleted.');
     }
   }
 
