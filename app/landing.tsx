@@ -38,10 +38,16 @@ export default function Landing() {
   const [pub, setPub] = useState(false);
   const [user, setUser] = useState<{ id: string; name: string; email: string } | null>(null);
   const [heroTab, setHeroTab] = useState<'vision' | 'chamber' | 'map' | 'guardian' | 'psi'>('vision');
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
   const [heroGravity, setHeroGravity] = useState<number>(0);
   const [isScanning, setIsScanning] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.style.colorScheme = 'dark';
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -78,9 +84,29 @@ export default function Landing() {
       .catch(() => {});
   }, []);
 
+  // Auto-cycle through the 5 hero preview sections automatically (pauses on user hover)
+  useEffect(() => {
+    if (isHeroPaused) return;
+    const tabs: Array<'vision' | 'map' | 'guardian' | 'chamber' | 'psi'> = [
+      'vision',
+      'map',
+      'guardian',
+      'chamber',
+      'psi'
+    ];
+    const timer = setInterval(() => {
+      setHeroTab(prev => {
+        const idx = tabs.indexOf(prev);
+        const nextIdx = (idx + 1) % tabs.length;
+        return tabs[nextIdx];
+      });
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [isHeroPaused, heroTab]);
+
   // Scroll Reveal Animations for sections and cards (animates both scrolling down & up)
   useEffect(() => {
-    const targets = document.querySelectorAll('.lp-reveal, .lp-feature-card, .lp-stage-card, .lp-stat-item');
+    const targets = document.querySelectorAll('.lp-reveal, .lp-feature-card, .lp-stage-card, .lp-stat-item, .lp-console-hero, .lp-console-module, .lp-matrix-row, .lp-orbital-cell, .lp-pipeline-step');
     if (!targets.length) return;
 
     const observer = new IntersectionObserver(
@@ -115,7 +141,6 @@ export default function Landing() {
           </a>
 
           <nav className="lp-nav-center">
-            <a className="lp-navlink" href="#features">Capabilities</a>
             <a className="lp-navlink" href="#psi-preview">NASA PSI Data</a>
             <a className="lp-navlink" href="#inspection">Visual AI</a>
             <a className="lp-navlink" href="#scanner-preview">2D Hazard Map</a>
@@ -179,14 +204,6 @@ export default function Landing() {
             </div>
 
             <nav className="lp-mobile-nav-links">
-              <a className="lp-mobile-navlink" href="#features" onClick={() => setMobileMenuOpen(false)}>
-                <Sliders size={18} />
-                <div>
-                  <b>Capabilities</b>
-                  <small>System overview & modules</small>
-                </div>
-                <ChevronRight size={16} className="lp-mobile-arrow" />
-              </a>
               <a className="lp-mobile-navlink" href="#psi-preview" onClick={() => setMobileMenuOpen(false)}>
                 <Database size={18} />
                 <div>
@@ -268,26 +285,26 @@ export default function Landing() {
           <div className="lp-hero-text">
             <div className="lp-badge">
               <span className="lp-badge-dot" />
-              <span className="lp-badge-text">NASA Space Apps & Microgravity Research · Proactive AI Fire Safety</span>
+              <span className="lp-badge-text">NASA Space Apps & Microgravity Research · Spaceflight Fire Safety Intelligence</span>
             </div>
 
             <h1>
-              Spot fire hazards <span className="text-gradient-flame">before ignition.</span><br />
-              Explore flame physics <span className="text-gradient-mint">without gravity.</span>
+              Spot habitat fire hazards <span className="text-gradient-flame">before ignition.</span><br />
+              Master flame physics <span className="text-gradient-mint">without gravity.</span>
             </h1>
 
             <p className="lp-lead">
-              Ember unifies multimodal AI visual hazard screening, 2D floorplan clearance planning, the Ember Guardian IoT
-              hardware specification, and an interactive microgravity combustion simulator — running 100% locally with private
-              SQLite storage.
+              Ember unifies autonomous visual hazard screening for pressurized spacecraft cabins and lunar outposts,
+              2D habitat spatial clearance architecture, the Ember Guardian microgravity IoT sensor node, and an interactive
+              orbital combustion simulator — backed by a persistent cloud-ready flight database.
             </p>
 
             <div className="lp-cta">
               <a className="lp-btn lp-btn-glow" href="#app">
-                {user ? 'Open Dashboard' : 'Launch Ember Lab'} <ArrowRight size={16} />
+                {user ? 'Open Flight Deck' : 'Launch Ember Lab'} <ArrowRight size={16} />
               </a>
               <a className="lp-btn alt" href="#app?tab=scanner">
-                <Layers size={15} /> 2D Hazard Map
+                <Layers size={15} /> 2D Clearance Map
               </a>
               {!user && (
                 <a className="lp-btn alt" href="#signup">
@@ -298,12 +315,19 @@ export default function Landing() {
 
             <div className="lp-trust-note">
               <Lock size={13} style={{ color: 'var(--mint)' }} />
-              <span>100% Private SQLite Storage · Runs Offline · NASA Flight Calibration Ready</span>
+              <span>Cloud & Edge Telemetry Synchronization · Mission Autonomous · NASA Flight Benchmark Calibrated</span>
             </div>
           </div>
 
           {/* Hero Interactive 4-Pillar Product Preview */}
-          <div className="hero-preview-card" role="region" aria-label="Ember Interactive Product Preview">
+          <div
+            className="hero-preview-card"
+            role="region"
+            aria-label="Ember Interactive Product Preview"
+            onMouseEnter={() => setIsHeroPaused(true)}
+            onMouseLeave={() => setIsHeroPaused(false)}
+            onTouchStart={() => setIsHeroPaused(true)}
+          >
             <div className="hero-card-header">
               <div className="hero-dots">
                 <span className="hero-dot" style={{ background: '#ef4444' }} />
@@ -366,68 +390,76 @@ export default function Landing() {
                     {/* Scanning Laser Beam */}
                     {isScanning && <div className="hero-scan-laser" />}
 
-                    {/* SVG Room Representation */}
-                    <svg viewBox="0 0 460 220" className="hero-room-svg" role="img" aria-label="Room Photo Inspection Viewport">
+                    {/* SVG Spacecraft Cabin Viewport */}
+                    <svg viewBox="0 0 460 220" className="hero-room-svg" role="img" aria-label="Pressurized Spacecraft Module Inspection Viewport">
                       <defs>
                         <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--panel)" />
-                          <stop offset="100%" stopColor="var(--panel-subtle)" />
+                          <stop offset="0%" stopColor="#0f172a" />
+                          <stop offset="100%" stopColor="#1e293b" />
                         </linearGradient>
                         <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--card-hover)" />
-                          <stop offset="100%" stopColor="var(--chip-bg)" />
+                          <stop offset="0%" stopColor="#1e293b" />
+                          <stop offset="100%" stopColor="#090d16" />
                         </linearGradient>
                       </defs>
 
-                      {/* Room Perspective Lines */}
+                      {/* Cylindrical Bulkhead Shell & Ribs */}
                       <rect x="0" y="0" width="460" height="150" fill="url(#wallGrad)" />
                       <polygon points="0,150 460,150 460,220 0,220" fill="url(#floorGrad)" />
-                      <line x1="0" y1="150" x2="460" y2="150" stroke="var(--border)" strokeWidth="1" />
+                      <line x1="0" y1="150" x2="460" y2="150" stroke="#334155" strokeWidth="1.5" />
+                      {/* Bulkhead Structural Ribs */}
+                      <line x1="80" y1="0" x2="80" y2="150" stroke="#334155" strokeWidth="1" strokeDasharray="4 2" />
+                      <line x1="220" y1="0" x2="220" y2="150" stroke="#334155" strokeWidth="1" strokeDasharray="4 2" />
+                      <line x1="360" y1="0" x2="360" y2="150" stroke="#334155" strokeWidth="1" strokeDasharray="4 2" />
 
-                      {/* Window with Drapery */}
-                      <rect x="50" y="20" width="90" height="100" rx="3" fill="var(--panel-subtle)" stroke="var(--border)" />
-                      <line x1="95" y1="20" x2="95" y2="120" stroke="var(--border)" strokeWidth="1" />
-                      <line x1="50" y1="70" x2="140" y2="70" stroke="var(--border)" strokeWidth="1" />
-                      {/* Hanging Drapes */}
-                      <path d="M 46 20 Q 55 80 48 152 L 72 152 Q 62 80 68 20 Z" fill="#94a3b8" opacity="0.8" />
-                      <path d="M 144 20 Q 135 80 142 152 L 118 152 Q 128 80 122 20 Z" fill="#94a3b8" opacity="0.8" />
+                      {/* Emergency Scuttle Airlock Hatch */}
+                      <rect x="42" y="16" width="94" height="106" rx="14" fill="#0b1119" stroke="#475569" strokeWidth="2" />
+                      <circle cx="89" cy="69" r="24" fill="#0284c7" opacity="0.25" stroke="#38bdf8" strokeWidth="1.5" />
+                      <line x1="89" y1="35" x2="89" y2="103" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 2" />
+                      <text x="89" y="73" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#38bdf8" fontFamily="ui-monospace, monospace">SCUTTLE HATCH</text>
 
-                      {/* Space Heater on Floor (Near Drapes) */}
-                      <rect x="80" y="132" width="38" height="42" rx="4" fill="#334155" stroke="#475569" strokeWidth="1.5" />
-                      <line x1="86" y1="142" x2="112" y2="142" stroke="#ea580c" strokeWidth="2" />
-                      <line x1="86" y1="150" x2="112" y2="150" stroke="#ea580c" strokeWidth="2" />
-                      <line x1="86" y1="158" x2="112" y2="158" stroke="#ea580c" strokeWidth="2" />
-                      <circle cx="99" cy="167" r="2" fill="#22c55e" />
+                      {/* Flammable MLI Thermal Insulation Blanket along bulkhead */}
+                      <path d="M 40 22 Q 48 80 44 150 L 68 150 Q 60 80 64 22 Z" fill="#f59e0b" opacity="0.75" stroke="#d97706" strokeWidth="1" />
+                      <path d="M 140 22 Q 132 80 138 150 L 116 150 Q 124 80 120 22 Z" fill="#f59e0b" opacity="0.75" stroke="#d97706" strokeWidth="1" />
+
+                      {/* Auxiliary ECLSS Heat Exchanger Unit (Violating MLI clearance) */}
+                      <rect x="76" y="128" width="42" height="46" rx="4" fill="#334155" stroke="#64748b" strokeWidth="1.5" />
+                      <line x1="82" y1="138" x2="112" y2="138" stroke="#ef4444" strokeWidth="2" />
+                      <line x1="82" y1="146" x2="112" y2="146" stroke="#ef4444" strokeWidth="2" />
+                      <line x1="82" y1="154" x2="112" y2="154" stroke="#ef4444" strokeWidth="2" />
+                      <circle cx="97" cy="165" r="2.5" fill="#f97316" />
 
                       {/* Proximity Distance Indicator Line */}
-                      <line x1="68" y1="152" x2="80" y2="152" stroke="var(--danger)" strokeWidth="2" strokeDasharray="3 2" />
-                      <text x="74" y="146" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--danger)">0.32m</text>
+                      <line x1="65" y1="150" x2="76" y2="150" stroke="var(--danger)" strokeWidth="2" strokeDasharray="3 2" />
+                      <text x="70.5" y="144" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--danger)">0.28m</text>
 
-                      {/* Bounding Box 1: Space Heater Proximity */}
-                      <rect x="42" y="118" width="86" height="66" rx="6" fill="rgba(220, 38, 38, 0.08)" stroke="var(--danger)" strokeWidth="2" strokeDasharray="4 4" className="hero-bbox-pulse" />
+                      {/* Bounding Box 1: Heat Exchanger Clearance Fault */}
+                      <rect x="36" y="116" width="94" height="70" rx="6" fill="rgba(220, 38, 38, 0.10)" stroke="var(--danger)" strokeWidth="2" strokeDasharray="4 4" className="hero-bbox-pulse" />
 
-                      {/* Wooden Desk / Furniture on Right */}
-                      <rect x="250" y="90" width="160" height="70" rx="3" fill="#cbd5e1" opacity="0.6" stroke="var(--border)" />
-                      <rect x="260" y="160" width="10" height="40" fill="#94a3b8" />
-                      <rect x="390" y="160" width="10" height="40" fill="#94a3b8" />
+                      {/* Science Payload Rack / Avionics Bay on Right */}
+                      <rect x="245" y="24" width="170" height="135" rx="4" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="255" y="34" width="150" height="24" rx="2" fill="#0f172a" stroke="#334155" />
+                      <text x="262" y="49" fontSize="8" fontWeight="700" fill="#38bdf8" fontFamily="ui-monospace, monospace">AVIONICS BUS A · 120V DC</text>
+                      <rect x="255" y="64" width="150" height="24" rx="2" fill="#0f172a" stroke="#334155" />
+                      <text x="262" y="79" fontSize="8" fontWeight="700" fill="#6ee7b7" fontFamily="ui-monospace, monospace">ECLSS LOOP 2 · NOMINAL</text>
 
-                      {/* Chained Power Strips on Carpet */}
-                      <rect x="280" y="174" width="46" height="14" rx="2" fill="#ffffff" stroke="#64748b" />
-                      <rect x="334" y="180" width="38" height="12" rx="2" fill="#ffffff" stroke="#64748b" />
-                      <path d="M 326 181 Q 330 186 334 186" fill="none" stroke="#0f172a" strokeWidth="2" />
-                      {/* Bounding Box 2: Electrical Chaining */}
-                      <rect x="274" y="166" width="104" height="34" rx="6" fill="rgba(180, 83, 9, 0.08)" stroke="var(--amber)" strokeWidth="2" strokeDasharray="4 4" />
+                      {/* Unanchored Umbilical Cables Daisy Chained */}
+                      <path d="M 270 145 Q 295 195 325 185 T 375 180" fill="none" stroke="#f59e0b" strokeWidth="3" />
+                      <rect x="315" y="176" width="46" height="14" rx="2" fill="#334155" stroke="#f59e0b" strokeWidth="1" />
+                      <text x="338" y="186.5" textAnchor="middle" fontSize="6.5" fontWeight="800" fill="#fef08a" fontFamily="ui-monospace, monospace">UMBILICAL-2</text>
+                      {/* Bounding Box 2: Umbilical Chaining */}
+                      <rect x="265" y="160" width="125" height="42" rx="6" fill="rgba(180, 83, 9, 0.10)" stroke="var(--amber)" strokeWidth="2" strokeDasharray="4 4" />
                     </svg>
 
                     {/* Overlay Badges */}
                     <div className="hero-scan-overlay">
                       <div className="hero-alert-chip danger">
                         <ShieldAlert size={12} />
-                        <span><b>Heater Proximity:</b> 0.32m to drapes (NFPA: min 1.0m)</span>
+                        <span><b>Thermal Clearance:</b> 0.28m to MLI blanket (NASA-STD-6001: min 0.8m)</span>
                       </div>
                       <div className="hero-alert-chip warning">
                         <ScanSearch size={12} />
-                        <span><b>Cord Hazard:</b> Power strip daisy chained on carpet</span>
+                        <span><b>Umbilical Hazard:</b> Daisy-chained jumper unanchored across cabin floor</span>
                       </div>
                     </div>
                   </div>
@@ -436,11 +468,11 @@ export default function Landing() {
                   <div className="hero-scan-footer">
                     <div className="hero-ai-status">
                       <Scan size={14} className="text-mint" />
-                      <span><b>Gemini Flash 3.5</b> · Multimodal Vision Screening · 2 Urgent Items</span>
+                      <span><b>AI Vision Model</b> · Pressurized Cabin Scan · 2 Critical Items</span>
                     </div>
-                    <button className="hero-rescan-btn" onClick={() => setIsScanning(!isScanning)}>
-                      <RotateCcw size={11} /> {isScanning ? 'Pause' : 'Rescan'}
-                    </button>
+                    <a href="#app?tab=guard" className="hero-rescan-btn" style={{ textDecoration: 'none' }}>
+                      Inspect Cabin <ArrowRight size={11} />
+                    </a>
                   </div>
                 </div>
               )}
@@ -458,48 +490,48 @@ export default function Landing() {
                       <line x1="155" y1="15" x2="155" y2="195" stroke="var(--border-subtle)" strokeDasharray="3 3" />
                       <line x1="305" y1="15" x2="305" y2="195" stroke="var(--border-subtle)" strokeDasharray="3 3" />
 
-                      {/* Room Labels */}
-                      <text x="30" y="36" fontSize="11" fontWeight="700" fill="var(--text-heading)">Living Room (West)</text>
-                      <text x="320" y="36" fontSize="11" fontWeight="700" fill="var(--text-heading)">Kitchen Zone</text>
+                      {/* Compartment Labels */}
+                      <text x="30" y="36" fontSize="11" fontWeight="700" fill="var(--text-heading)">Port Avionics Bay (Zone A)</text>
+                      <text x="310" y="36" fontSize="11" fontWeight="700" fill="var(--text-heading)">ECLSS Life Support Module</text>
 
-                      {/* Space Heater in Living Room */}
+                      {/* Auxiliary Heat Exchanger */}
                       <circle cx="110" cy="105" r="18" fill="var(--flame-dim)" stroke="var(--flame)" strokeWidth="2" />
-                      <text x="110" y="109" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--flame)">HEATER</text>
+                      <text x="110" y="109" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--flame)">HEAT EXCH</text>
 
-                      {/* 1m Clearance Safe Radius Circle (Dashed) */}
+                      {/* 0.8m Clearance Radius Halo (Dashed) */}
                       <circle cx="110" cy="105" r="54" fill="none" stroke="var(--flame)" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.7" className="hero-clearance-ring" />
 
-                      {/* Long Window Curtains Object */}
+                      {/* MLI Blanket Stowage */}
                       <rect x="52" y="138" width="56" height="14" rx="3" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="1.5" />
-                      <text x="80" y="149" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--danger)">CURTAINS</text>
+                      <text x="80" y="149" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--danger)">MLI BLANKET</text>
 
                       {/* Violation Connection Line */}
                       <line x1="100" y1="120" x2="88" y2="138" stroke="var(--danger)" strokeWidth="2" strokeDasharray="2 2" />
                       <circle cx="94" cy="129" r="3" fill="var(--danger)" />
 
                       {/* Violation Tag */}
-                      <rect x="135" y="125" width="135" height="26" rx="4" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="1" />
-                      <text x="142" y="142" fontSize="9.5" fontWeight="700" fill="var(--danger)">
-                        CLEARANCE CONFLICT (0.42m)
+                      <rect x="135" y="125" width="145" height="26" rx="4" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="1" />
+                      <text x="142" y="142" fontSize="9" fontWeight="700" fill="var(--danger)">
+                        CLEARANCE CONFLICT (0.28m)
                       </text>
 
-                      {/* Kitchen Stove & Extinguisher */}
-                      <rect x="365" y="65" width="48" height="42" rx="4" fill="var(--chip-bg)" stroke="var(--border-strong)" strokeWidth="1.5" />
-                      <text x="389" y="89" textAnchor="middle" fontSize="9" fontWeight="600" fill="var(--text)">STOVE</text>
+                      {/* Galley Rehydration & Water Mist Extinguisher */}
+                      <rect x="365" y="65" width="52" height="42" rx="4" fill="var(--chip-bg)" stroke="var(--border-strong)" strokeWidth="1.5" />
+                      <text x="391" y="89" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="var(--text)">GALLEY</text>
 
                       <circle cx="340" cy="145" r="14" fill="var(--mint-dim)" stroke="var(--mint)" strokeWidth="1.5" />
-                      <text x="340" y="149" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--mint)">EXT</text>
+                      <text x="340" y="149" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="var(--mint)">MIST EXT</text>
 
                       {/* Safe Corridor Zone */}
                       <path d="M 230 15 L 230 195" stroke="var(--mint)" strokeWidth="1" strokeDasharray="4 4" />
-                      <text x="235" y="185" fontSize="8.5" fill="var(--muted)">Exit Path Clear</text>
+                      <text x="235" y="185" fontSize="8.5" fill="var(--muted)">Airlock Egress Clear</text>
                     </svg>
                   </div>
 
                   <div className="hero-scan-footer">
                     <div className="hero-ai-status">
                       <Layers size={14} style={{ color: 'var(--amber)' }} />
-                      <span><b>Spatial Risk Score: 78/100</b> · Relocate heater 0.6m East to achieve 100/100</span>
+                      <span><b>Spatial Clearance Index: 78/100</b> · Relocate heat exchanger 0.52m forward to reach 100/100</span>
                     </div>
                     <a href="#app?tab=scanner" className="hero-rescan-btn" style={{ textDecoration: 'none' }}>
                       Open Planner <ArrowRight size={11} />
@@ -595,10 +627,10 @@ export default function Landing() {
                   <div className="hero-scan-footer">
                     <div className="hero-ai-status">
                       <Cpu size={14} className="text-mint" />
-                      <span><b>Ember Guardian 1:1 Hardware Model</b> · 70×70×28 mm Enclosure · 7 Ventilation Gills</span>
+                      <span><b>Ember Guardian 1:1 Hardware Model</b> · 70×70×28 mm Pressurized Enclosure · 14 Forced-Air Aspiration Gills</span>
                     </div>
-                    <a href="#app?tab=guard" className="hero-rescan-btn" style={{ textDecoration: 'none' }}>
-                      Inspect 3D Model <ArrowRight size={11} />
+                    <a href="#app?tab=guardian" className="hero-rescan-btn" style={{ textDecoration: 'none' }}>
+                      Inspect 3D Node <ArrowRight size={11} />
                     </a>
                   </div>
                 </div>
@@ -704,7 +736,7 @@ export default function Landing() {
                       </div>
                       <div className="hero-psi-metric">
                         <small>BASS-II Solid Spread</small>
-                        <b>0.8–2.5 mm/s</b>
+                        <b>0.4–1.8 mm/s</b>
                         <span>Low forced airflow drift</span>
                       </div>
                     </div>
@@ -728,44 +760,46 @@ export default function Landing() {
 
       {/* Metrics & Impact Strip */}
       <section className="lp-metrics-section lp-reveal">
-        <div className="lp-stat-strip">
-          <div className="lp-stat-item">
-            <span className="lp-stat-num">100%</span>
-            <span className="lp-stat-label">Local & Private (SQLite)</span>
+        <div className="lp-telemetry-ribbon">
+          <div className="lp-telemetry-cell">
+            <div className="lp-telemetry-tag"><span className="telemetry-dot mint" /> SYSTEM ARCHITECTURE</div>
+            <div className="lp-telemetry-val">CLOUD & FLIGHT DB</div>
+            <div className="lp-telemetry-sub">Multi-tenant synchronized flight database · Real-time ACID records with collaborative team access</div>
           </div>
-          <div className="lp-stat-divider" />
-          <div className="lp-stat-item">
-            <span className="lp-stat-num">&lt; 1.5s</span>
-            <span className="lp-stat-label">Gemini Flash Multimodal Scan</span>
+          <div className="lp-telemetry-cell">
+            <div className="lp-telemetry-tag"><span className="telemetry-dot amber" /> NEURAL INFERENCE</div>
+            <div className="lp-telemetry-val">&lt; 1.5s / SCAN</div>
+            <div className="lp-telemetry-sub">Multimodal vision screening · Automated NASA-STD-6001 audit</div>
           </div>
-          <div className="lp-stat-divider" />
-          <div className="lp-stat-item">
-            <span className="lp-stat-num">70×70mm</span>
-            <span className="lp-stat-label">Ember Guardian IoT Node</span>
+          <div className="lp-telemetry-cell">
+            <div className="lp-telemetry-tag"><span className="telemetry-dot flame" /> HARDWARE TELEMETRY</div>
+            <div className="lp-telemetry-val">70×70mm IOT SENSORS</div>
+            <div className="lp-telemetry-sub">Ember Guardian IoT stage · Multi-criteria environmental sensing</div>
           </div>
-          <div className="lp-stat-divider" />
-          <div className="lp-stat-item">
-            <span className="lp-stat-num">0 – 2.0 g</span>
-            <span className="lp-stat-label">NASA Benchmark Ready</span>
+          <div className="lp-telemetry-cell">
+            <div className="lp-telemetry-tag"><span className="telemetry-dot info" /> NUMERICAL KINETICS</div>
+            <div className="lp-telemetry-val">0.00 – 2.00 g SWEEP</div>
+            <div className="lp-telemetry-sub">Differential energy equations · NASA PSI flight benchmark calibrated</div>
           </div>
         </div>
       </section>
 
       {/* Proactive vs Reactive Timeline Infographic Strip */}
       <section className="lp-sec lp-timeline-sec lp-reveal">
-        <div style={{ maxWidth: '980px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: '1080px', margin: '0 auto', textAlign: 'center' }}>
           <div className="lp-timeline-tag">
             <ShieldCheck size={14} />
-            <span>The Power of Early Prevention</span>
+            <span>Zero-G Fire Kinetics & Detection Phase Lag</span>
           </div>
-          <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Early Proactive Prevention vs. Delayed Reactive Alarms</h2>
-          <p style={{ fontSize: '14.5px', color: 'var(--muted)', maxWidth: '64ch', margin: '0 auto 32px' }}>
-            Ceiling smoke alarms only alert you after combustion particles have accumulated in the air. Ember visual
-            inspections detect dangerous thermal clearance violations beforehand so hazards can be remediated for $0.
+          <h2 style={{ fontSize: '26px', marginBottom: '8px' }}>Why Stagnant Microgravity Smoke Demands Pre-Ignition Thermal Screening</h2>
+          <p style={{ fontSize: '15px', color: 'var(--muted)', maxWidth: '72ch', margin: '0 auto 32px', lineHeight: 1.6 }}>
+            In Earth’s 1 g gravity, buoyant convection drives hot gases and smoke upward into ceiling detectors.
+            In microgravity (0 g), buoyancy is completely absent: smoke particulates stagnate in localized clouds
+            until drawn by forced ventilation. Ember AI screening catches thermal clearance violations at Phase 0 before ignition occurs.
           </p>
 
-          <figure className="lp-infographic-card">
-            <svg viewBox="0 0 760 230" className="lp-timeline-svg" role="img" aria-label="Early hazard detection vs traditional smoke alarm timeline">
+          <figure className="lp-infographic-wrap" style={{ background: 'rgba(11, 17, 26, 0.6)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px 16px', backdropFilter: 'blur(10px)' }}>
+            <svg viewBox="0 0 760 230" className="lp-timeline-svg" role="img" aria-label="Microgravity hazard detection vs traditional sensor lag timeline">
               <defs>
                 <linearGradient id="curveGradient" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="var(--mint)" />
@@ -773,7 +807,7 @@ export default function Landing() {
                   <stop offset="85%" stopColor="var(--flame)" />
                   <stop offset="100%" stopColor="var(--danger)" />
                 </linearGradient>
-                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="rgba(224, 83, 28, 0.18)" />
                   <stop offset="100%" stopColor="rgba(224, 83, 28, 0.0)" />
                 </linearGradient>
@@ -797,114 +831,144 @@ export default function Landing() {
                 strokeLinecap="round"
               />
 
-              {/* Point 1: Ember Proactive Detection (T = 0, Pre-Ignition) */}
+              {/* Point 1: Ember Proactive Detection (T = 0, Pre-Ignition Phase) */}
               <circle cx="180" cy="181" r="16" fill="none" stroke="var(--mint)" strokeWidth="1.5" className="beacon-ring" />
               <circle cx="180" cy="181" r="7" fill="var(--mint)" />
               <line x1="180" y1="36" x2="180" y2="174" stroke="var(--mint)" strokeWidth="2" strokeDasharray="4 4" />
               <rect x="75" y="32" width="210" height="48" rx="8" fill="var(--panel)" stroke="var(--mint)" strokeWidth="1.5" filter="drop-shadow(0 4px 12px rgba(5,150,105,0.15))" />
               <text x="180" y="52" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--mint)">
-                Ember AI Visual Scan
+                Ember AI Multi-Spectral Scan
               </text>
-              <text x="180" y="68" textAnchor="middle" fontSize="10.5" fill="var(--muted)">
-                Pre-ignition clearance violation spotted ($0 fix)
+              <text x="180" y="68" textAnchor="middle" fontSize="10" fill="var(--muted)">
+                Pre-ignition clearance violation spotted (T = 0)
               </text>
 
-              {/* Point 2: Traditional Smoke Alarm Trigger (T = +3 to 5 min) */}
+              {/* Point 2: Traditional Ionization Sensor Trigger (Lagged by Zero-G Stagnation) */}
               <circle cx="500" cy="100" r="7" fill="var(--danger)" />
               <line x1="500" y1="74" x2="500" y2="185" stroke="var(--danger)" strokeWidth="2" strokeDasharray="4 4" />
-              <rect x="425" y="70" width="200" height="48" rx="8" fill="var(--panel)" stroke="var(--border)" strokeWidth="1.5" />
-              <text x="525" y="90" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--text-heading)">
-                Standard Smoke Alarm
+              <rect x="425" y="70" width="215" height="48" rx="8" fill="var(--panel)" stroke="var(--border)" strokeWidth="1.5" />
+              <text x="532" y="90" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--text-heading)">
+                Standard Smoke Sensor
               </text>
-              <text x="525" y="106" textAnchor="middle" fontSize="10.5" fill="var(--muted)">
-                Triggers when smoke reaches ceiling (seconds left)
+              <text x="532" y="106" textAnchor="middle" fontSize="10" fill="var(--muted)">
+                Delayed until forced flow pulls smoke (critical lag)
               </text>
 
-              {/* Point 3: Flashover / Rapid Flame Spread */}
+              {/* Point 3: Thermal Runaway / Rapid Flame Spread */}
               <circle cx="710" cy="18" r="6" fill="var(--danger)" />
 
               {/* Timeline Horizontal Axis Milestones */}
-              <text x="40" y="210" fontSize="11" fill="var(--muted)" fontWeight="600">Setup & Normal Use</text>
-              <text x="360" y="210" textAnchor="middle" fontSize="11" fill="var(--muted)">Smoldering & Heat Build-up</text>
+              <text x="40" y="210" fontSize="11" fill="var(--muted)" fontWeight="600">Nominal Flight Operations</text>
+              <text x="360" y="210" textAnchor="middle" fontSize="11" fill="var(--muted)">Smoldering & Thermal Escalation</text>
               <text x="720" y="210" textAnchor="end" fontSize="11" fill="var(--danger)" fontWeight="700">Open Flaming / Flashover</text>
             </svg>
           </figure>
         </div>
       </section>
 
-      {/* Four Integrated Pillars Grid */}
+      {/* Four Integrated Pillars Console */}
       <section className="lp-sec lp-reveal" id="features">
         <div className="lp-sec-header">
-          <h2>Four Integrated Pillars of Fire Safety & Combustion Science</h2>
+          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>MISSION ARCHITECTURE</span>
+          <h2>Integrated Flight Safety & Microgravity Combustion Systems</h2>
           <p>
-            Whether inspecting a family living room, assessing habitat compartments, prototyping IoT early-warning
-            hardware, or researching microgravity flame dynamics, Ember provides a unified, local-first platform.
+            From pressurized spacecraft compartments and lunar surface outposts to IoT early warning telemetry and
+            orbital combustion physics, Ember delivers a unified, mission-ready operational suite.
           </p>
         </div>
 
-        <div className="lp-features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          {/* Pillar 1: AI Room Photo Inspection */}
-          <div className="lp-feature-card">
-            <div className="lp-icon-box flame">
-              <ScanSearch size={22} />
+        <div className="lp-console-layout">
+          {/* Main Featured Showcase Panel */}
+          <div className="lp-console-hero">
+            <div className="lp-console-hero-header">
+              <div className="lp-console-subsystem">
+                <ScanSearch size={18} className="text-flame" />
+                <span>PRIMARY SYSTEM // OPTICAL HAZARD SCREENING</span>
+              </div>
+              <span className="lp-console-badge">NASA-STD-6001 READY</span>
             </div>
-            <span className="lp-feature-tag">Proactive AI</span>
-            <h3>Multimodal Visual Room Inspections</h3>
-            <p>
-              Upload or snap room photos to run high-speed visual evaluations using Google Gemini Flash. Ember automatically
-              spots space heaters near curtains, overloaded power strip daisy chains, and blocked emergency exits.
+
+            <h3 className="lp-console-hero-title">
+              Autonomous Visual Cabin & Compartment Hazard Screening
+            </h3>
+            <p className="lp-console-hero-desc">
+              Audits wide-angle optical surveys of habitable crew volumes, avionics bays, and science experiment racks.
+              Instantly detects high-temperature heat exchangers encroaching on combustible Multi-Layer Insulation (MLI),
+              unanchored wire harness umbilical daisy chaining, and blocked emergency airlock scuttle paths.
             </p>
-            <a href="#app?tab=guard" className="lp-feature-link">
-              Explore Room Safety Hub <ChevronRight size={14} />
-            </a>
+
+            <div className="lp-console-hud-matrix">
+              <div className="lp-hud-indicator">
+                <span className="hud-code">CHK-01</span>
+                <b>Thermal Clearance Verification</b>
+                <small>Enforces certified physical separation from MLI, Kapton, and stowage</small>
+              </div>
+              <div className="lp-hud-indicator">
+                <span className="hud-code">CHK-02</span>
+                <b>Avionics Bus & Umbilical Chaining</b>
+                <small>Flags high-amp electrical jumpers and loose wire bundles near oxygen lines</small>
+              </div>
+              <div className="lp-hud-indicator">
+                <span className="hud-code">CHK-03</span>
+                <b>Egress & ECLSS Air Duct Access</b>
+                <small>Guarantees unobstructed pathways to emergency airlocks and return grilles</small>
+              </div>
+            </div>
+
+            <div className="lp-console-hero-footer">
+              <a href="#app?tab=guard" className="lp-btn lp-btn-glow">
+                Launch Habitat Safety Hub <ArrowRight size={15} />
+              </a>
+              <span className="lp-console-meta">High-throughput synchronized flight telemetry</span>
+            </div>
           </div>
 
-          {/* Pillar 2: 2D Spatial Floorplan Planner */}
-          <div className="lp-feature-card">
-            <div className="lp-icon-box info">
-              <Layers size={22} />
+          {/* Complementary 3-Pillar Stack */}
+          <div className="lp-console-stack">
+            <div className="lp-console-module">
+              <div className="lp-console-mod-meta">
+                <span className="mod-id">MOD 01</span>
+                <span className="mod-cat"><Layers size={13} /> SPATIAL KINETICS</span>
+              </div>
+              <h4>2D Orbital Clearance Architecture Planner</h4>
+              <p>
+                Interactive floorplan canvas to place avionics racks, life support ducting, thermal radiators, and egress
+                hatches with real-time clearance halos and quantitative fire risk scoring (0–100).
+              </p>
+              <a href="#app?tab=scanner" className="lp-mod-link">
+                Launch Clearance Planner <ChevronRight size={14} />
+              </a>
             </div>
-            <span className="lp-feature-tag info">Spatial Physics</span>
-            <h3>2D Floorplan Hazard Planner</h3>
-            <p>
-              Draw floorplans on an interactive canvas, place cooking appliances, heaters, and furniture, and instantly
-              screen spatial clearance zones to calculate a quantitative fire safety score.
-            </p>
-            <a href="#app?tab=scanner" className="lp-feature-link">
-              Launch Hazard Planner <ChevronRight size={14} />
-            </a>
-          </div>
 
-          {/* Pillar 3: Ember Guardian IoT Hardware Device */}
-          <div className="lp-feature-card">
-            <div className="lp-icon-box amber">
-              <Cpu size={22} />
+            <div className="lp-console-module">
+              <div className="lp-console-mod-meta">
+                <span className="mod-id">MOD 02</span>
+                <span className="mod-cat"><Cpu size={13} /> HARDWARE BLUEPRINT</span>
+              </div>
+              <h4>Ember Guardian IoT Microgravity Sensor Node</h4>
+              <p>
+                70×70×28 mm squircle enclosure with dual 7-slot forced-convection intake gills, 1.3" OLED telemetry,
+                tri-color beacon LED, and 85 dB acoustic siren to wake resting astronauts.
+              </p>
+              <a href="#app?tab=guardian" className="lp-mod-link">
+                Inspect 3D Hardware Twin <ChevronRight size={14} />
+              </a>
             </div>
-            <span className="lp-feature-tag amber">Hardware & 3D</span>
-            <h3>Ember Guardian IoT Hardware Node</h3>
-            <p>
-              Inspect the 70×70×28 mm temperature and acoustic monitoring node. Features an interactive 1:1 3D WebGL
-              model, OLED screen, tri-color beacon LED, 85 dB speaker matrix, and engineering blueprint.
-            </p>
-            <a href="#app?tab=guard" className="lp-feature-link">
-              Inspect 3D Hardware Model <ChevronRight size={14} />
-            </a>
-          </div>
 
-          {/* Pillar 4: Microgravity Combustion Chamber */}
-          <div className="lp-feature-card">
-            <div className="lp-icon-box mint">
-              <Flame size={22} />
+            <div className="lp-console-module">
+              <div className="lp-console-mod-meta">
+                <span className="mod-id">MOD 03</span>
+                <span className="mod-cat"><Flame size={13} /> FLIGHT SCIENCE</span>
+              </div>
+              <h4>Microgravity Combustion Kinetics Simulator</h4>
+              <p>
+                EMBER-ROM 0.1 lumped ODE energy balance across variable gravity (0 g micro-g, 0.165 g Moon, 0.378 g Mars,
+                1.0 g Earth) with multi-fuel kinetics and NASA flight benchmark validation.
+              </p>
+              <a href="#app?tab=lab" className="lp-mod-link">
+                Open Combustion Lab <ChevronRight size={14} />
+              </a>
             </div>
-            <span className="lp-feature-tag mint">Combustion Physics</span>
-            <h3>Microgravity Combustion Laboratory</h3>
-            <p>
-              Simulate flame physics across variable gravity from 0 g microgravity up to 2 g hypergravity with fixed-center
-              kinetics, multi-fuel thermodynamics, and NASA flight benchmark calibration endpoints.
-            </p>
-            <a href="#app?tab=lab" className="lp-feature-link">
-              Open Flame Laboratory <ChevronRight size={14} />
-            </a>
           </div>
         </div>
       </section>
@@ -912,48 +976,67 @@ export default function Landing() {
       {/* Visual Inspection Deep-Dive */}
       <section className="lp-sec lp-reveal" id="inspection">
         <div className="lp-sec-header">
-          <h2>Specialized Residential Fire Hazard Detection</h2>
+          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>SPACEFLIGHT FIRE CODES</span>
+          <h2>Spacecraft Habitat Fire Vulnerability Matrix</h2>
           <p>
-            Trained on residential fire protection principles, Ember uses specialized vision rules to flag common
-            ignition vulnerabilities before they cause harm.
+            Calibrated against NASA-STD-6001, NASA SP-5080, and ISS SSP 50005 flight safety criteria,
+            Ember automates the identification of ignition precursors before thermal runaway.
           </p>
         </div>
 
-        <div className="lp-features-grid">
-          <div className="lp-feature-card">
-            <div className="lp-icon-box flame">
-              <ShieldAlert size={20} />
+        <div className="lp-matrix-table">
+          <div className="lp-matrix-row">
+            <div className="lp-matrix-col-id">
+              <span className="lp-matrix-num">CRIT-01</span>
+              <div className="lp-icon-box flame"><ShieldAlert size={20} /></div>
             </div>
-            <h3>Space Heater Proximity</h3>
-            <p>
-              Space heaters cause a significant portion of home heating fire deaths. Ember verifies that electric
-              heaters maintain at least 1 meter of clearance from curtains, rugs, bedding, and cardboard.
-            </p>
-            <span className="lp-rule-badge">Rule: NFPA 1m Radius Clearance</span>
+            <div className="lp-matrix-col-content">
+              <h3>Thermal Radiators & MLI Insulation Boundary Violations</h3>
+              <p>
+                In pressurized habitats, high-temperature avionics radiators and auxiliary heat exchangers can ignite
+                combustible Multi-Layer Insulation (MLI), Kapton films, and crew stowage fabric. Ember verifies certified
+                spatial separation from combustible polymers according to NASA-STD-6001 Test 1 criteria.
+              </p>
+            </div>
+            <div className="lp-matrix-col-badge">
+              <span className="lp-rule-badge">Standard: NASA-STD-6001 (Min 0.8m Buffer)</span>
+            </div>
           </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box amber">
-              <Activity size={20} />
+          <div className="lp-matrix-row">
+            <div className="lp-matrix-col-id">
+              <span className="lp-matrix-num">CRIT-02</span>
+              <div className="lp-icon-box amber"><Activity size={20} /></div>
             </div>
-            <h3>Electrical Cord Arrangements</h3>
-            <p>
-              Identifies daisy-chained power strips, heavy appliances plugged into light-duty extension cords, and
-              cables tangled under wooden furniture or high-traffic carpet.
-            </p>
-            <span className="lp-rule-badge">Rule: No Daisy Chaining on Carpet</span>
+            <div className="lp-matrix-col-content">
+              <h3>Wire Harness Umbilical Chaining & High-Amp Jumper Fatigue</h3>
+              <p>
+                Identifies non-conforming umbilical daisy chaining, high-current jumper cords crossing crew transit corridors,
+                and unanchored wire harnesses vibrating against pressurized aluminum bulkhead ribs under acoustic and launch loads,
+                preventing catastrophic electrical arc flashovers.
+              </p>
+            </div>
+            <div className="lp-matrix-col-badge">
+              <span className="lp-rule-badge">Standard: NASA SP-5080 Harness Guidelines</span>
+            </div>
           </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box mint">
-              <Camera size={20} />
+          <div className="lp-matrix-row">
+            <div className="lp-matrix-col-id">
+              <span className="lp-matrix-num">CRIT-03</span>
+              <div className="lp-icon-box mint"><Camera size={20} /></div>
             </div>
-            <h3>Cooking Area Clearance</h3>
-            <p>
-              Spots dish towels, oven mitts, wooden utensils, and food packaging resting dangerously close to stove
-              burners, advising immediate clearance before cooking begins.
-            </p>
-            <span className="lp-rule-badge">Rule: Clear Stovetop Perimeter</span>
+            <div className="lp-matrix-col-content">
+              <h3>Emergency Scuttle Airlock & ECLSS Duct Restriction</h3>
+              <p>
+                Detects unanchored cargo bags, experiment hardware, or maintenance toolkits encroaching on emergency
+                airlock scuttle doors and Environmental Control and Life Support System (ECLSS) emergency return air grilles,
+                preventing oxygen accumulation and blocked crew escape paths.
+              </p>
+            </div>
+            <div className="lp-matrix-col-badge">
+              <span className="lp-rule-badge">Standard: ISS SSP 50005 Rapid Egress Code</span>
+            </div>
           </div>
         </div>
       </section>
@@ -963,69 +1046,69 @@ export default function Landing() {
         <div className="lp-scanner-grid">
           <div>
             <span className="hero-tag info" style={{ marginBottom: '14px' }}>Interactive 2D Spatial Engine</span>
-            <h2>Plan Room Geometry & Spatial Clearances</h2>
+            <h2>Orbital Module & Rover 2D Spatial Clearance Architecture</h2>
             <p className="lp-lead" style={{ fontSize: '15px', marginBottom: '20px' }}>
-              Test your room layouts before arranging furniture. Place heaters, stoves, curtains, and escape routes to
-              uncover dangerous spatial adjacencies with immediate rule-based clearance feedback.
+              Map pressurized cabin layouts before mission launch. Position avionics bays, life support ducting, thermal
+              radiators, and egress scuttles to eliminate localized oxygen pooling and critical thermal-combustion proximity.
             </p>
             <ul className="lp-checklist">
               <li>
                 <CheckCircle2 size={16} className="text-mint shrink-0" />
-                <span>Instant quantitative fire risk scoring from 0 to 100</span>
+                <span>Instant quantitative habitat clearance index scoring from 0 to 100</span>
               </li>
               <li>
                 <CheckCircle2 size={16} className="text-mint shrink-0" />
-                <span>Clearance circle overlays showing safe thermal separation radii</span>
+                <span>Thermal dispersion halos showing certified physical separation radii</span>
               </li>
               <li>
                 <CheckCircle2 size={16} className="text-mint shrink-0" />
-                <span>Actionable layout advice to resolve flagged conflicts in seconds</span>
+                <span>Actionable equipment relocation trajectories to resolve flagged conflicts</span>
               </li>
             </ul>
             <a className="lp-btn lp-btn-glow" href="#app?tab=scanner">
-              Open 2D Hazard Scanner <ArrowRight size={14} />
+              Open 2D Habitat Clearance Scanner <ArrowRight size={14} />
             </a>
           </div>
 
           {/* SVG Floorplan Illustration */}
           <div className="lp-showcase-svg-wrap">
-            <svg viewBox="0 0 420 310" className="lp-floorplan-showcase-svg" role="img" aria-label="Floorplan Hazard Scanner Simulation View">
-              {/* Room perimeter */}
+            <svg viewBox="0 0 420 310" className="lp-floorplan-showcase-svg" role="img" aria-label="Spacecraft Compartment Spatial Clearance View">
+              {/* Habitat perimeter */}
               <rect x="20" y="20" width="380" height="270" fill="var(--card-bg)" stroke="var(--border-strong)" strokeWidth="2" rx="6" />
-              {/* Grid lines */}
+              {/* Coordinate Grid */}
               <line x1="20" y1="110" x2="400" y2="110" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="3 3" />
               <line x1="20" y1="200" x2="400" y2="200" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="3 3" />
               <line x1="145" y1="20" x2="145" y2="290" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="3 3" />
               <line x1="275" y1="20" x2="275" y2="290" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="3 3" />
 
-              {/* Heater Item with Thermal Dispersion Halo */}
+              {/* Heat Exchanger with Thermal Dispersion Halo */}
               <circle cx="105" cy="85" r="56" fill="rgba(224, 83, 28, 0.08)" stroke="var(--flame)" strokeWidth="1.5" strokeDasharray="4 4" className="hero-clearance-ring" />
               <circle cx="105" cy="85" r="18" fill="var(--flame-dim)" stroke="var(--flame)" strokeWidth="2" />
-              <text x="105" y="89" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--flame)">HEAT</text>
+              <text x="105" y="89" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--flame)">HEAT</text>
 
-              {/* Curtain Item (Violating Clearance) */}
+              {/* Combustible MLI Blanket */}
               <circle cx="138" cy="116" r="16" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="2" />
-              <text x="138" y="120" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--danger)">CURT</text>
+              <text x="138" y="120" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--danger)">MLI</text>
 
               {/* Red Line Connecting Proximity Fault */}
               <line x1="105" y1="85" x2="138" y2="116" stroke="var(--danger)" strokeWidth="2" strokeDasharray="3 2" />
 
               {/* Warning Callout Tag */}
-              <rect x="165" y="102" width="180" height="28" rx="6" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="1" />
-              <text x="175" y="120" fontSize="10" fontWeight="700" fill="var(--danger)">
-                CRITICAL: Curtain within 1m
+              <rect x="165" y="102" width="190" height="28" rx="6" fill="var(--danger-dim)" stroke="var(--danger)" strokeWidth="1" />
+              <text x="175" y="120" fontSize="9.5" fontWeight="700" fill="var(--danger)">
+                CRITICAL: MLI Blanket within 0.8m
               </text>
 
-              {/* Stove & Extinguisher */}
+              {/* Galley & Fine Water Mist Suppression */}
               <circle cx="310" cy="215" r="18" fill="var(--chip-bg)" stroke="var(--border-strong)" strokeWidth="1.5" />
-              <text x="310" y="219" textAnchor="middle" fontSize="9" fontWeight="600" fill="var(--text)">STOVE</text>
+              <text x="310" y="219" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="var(--text)">GALLEY</text>
 
               <circle cx="235" cy="215" r="16" fill="var(--mint-dim)" stroke="var(--mint)" strokeWidth="1.5" />
-              <text x="235" y="219" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--mint)">EXT</text>
+              <text x="235" y="219" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--mint)">MIST</text>
 
               {/* HUD Badge */}
-              <rect x="32" y="32" width="145" height="26" rx="6" fill="var(--panel)" stroke="var(--border)" />
-              <text x="42" y="49" fontSize="10.5" fontWeight="700" fill="var(--amber)">RISK: MODERATE (78/100)</text>
+              <rect x="32" y="32" width="165" height="26" rx="6" fill="var(--panel)" stroke="var(--border)" />
+              <text x="42" y="49" fontSize="10" fontWeight="700" fill="var(--amber)">HAB CLEARANCE: 78/100</text>
             </svg>
           </div>
         </div>
@@ -1038,45 +1121,46 @@ export default function Landing() {
             <span className="hero-tag flame" style={{ marginBottom: '14px' }}>
               <Cpu size={12} /> Hardware Blueprint & 3D Twin
             </span>
-            <h2>Ember Guardian: Smart Temperature & Early Warning Node</h2>
+            <h2>Ember Guardian: Microgravity Environmental Monitoring Node</h2>
             <p className="lp-lead" style={{ fontSize: '15px', marginBottom: '18px' }}>
-              Designed around an authentic engineering blueprint, the Ember Guardian is a dedicated IoT environmental
-              monitoring device. It continuously samples room air convection, gives immediate visual telemetry, and sounds
-              an 85 dB audible alert when abnormal thermal escalation is spotted.
+              Designed around an authentic aerospace engineering blueprint, the Ember Guardian is an environmental
+              monitoring device for spacecraft cabins and surface outposts. Because microgravity prevents natural
+              convective buoyancy, the Guardian utilizes active forced-air intake gills, real-time thermal telemetry,
+              and an 85 dB audible alert to wake resting crew in the event of thermal escalation.
             </p>
 
             <div className="lp-guardian-specs-grid">
               <div className="lp-guardian-spec-item">
-                <span className="lp-guardian-spec-label"><Sliders size={12} /> Dimensions</span>
+                <span className="lp-guardian-spec-label"><Sliders size={12} /> Enclosure</span>
                 <span className="lp-guardian-spec-val">70 × 70 × 28 mm Squircle</span>
               </div>
               <div className="lp-guardian-spec-item">
-                <span className="lp-guardian-spec-label"><Eye size={12} /> OLED Display</span>
+                <span className="lp-guardian-spec-label"><Eye size={12} /> OLED Telemetry</span>
                 <span className="lp-guardian-spec-val">1.3" Monochrome (128×64)</span>
               </div>
               <div className="lp-guardian-spec-item">
                 <span className="lp-guardian-spec-label"><ShieldCheck size={12} /> Status Beacon</span>
-                <span className="lp-guardian-spec-val">Tri-Color RGB Early Warning</span>
+                <span className="lp-guardian-spec-val">Tri-Color RGB Warning LED</span>
               </div>
               <div className="lp-guardian-spec-item">
                 <span className="lp-guardian-spec-label"><Activity size={12} /> Acoustic Alarm</span>
-                <span className="lp-guardian-spec-val">85 dB Piezo Resonator Matrix</span>
+                <span className="lp-guardian-spec-val">85 dB Piezo Siren Matrix</span>
               </div>
               <div className="lp-guardian-spec-item">
-                <span className="lp-guardian-spec-label"><Flame size={12} /> Air Intake</span>
-                <span className="lp-guardian-spec-val">Dual 7-Slot Convective Gills</span>
+                <span className="lp-guardian-spec-label"><Flame size={12} /> Forced Aspiration</span>
+                <span className="lp-guardian-spec-val">Dual 7-Slot Micro-G Gills</span>
               </div>
               <div className="lp-guardian-spec-item">
                 <span className="lp-guardian-spec-label"><Zap size={12} /> Telemetry & Power</span>
-                <span className="lp-guardian-spec-val">USB-C Base + Wall Mount</span>
+                <span className="lp-guardian-spec-val">USB-C + Bulkhead Mount</span>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <a className="lp-btn lp-btn-glow" href="#app?tab=guard">
+              <a className="lp-btn lp-btn-glow" href="#app?tab=guardian">
                 Launch Interactive 3D Model <ArrowRight size={14} />
               </a>
-              <a className="lp-btn alt" href="#app?tab=guard">
+              <a className="lp-btn alt" href="#app?tab=guardian">
                 <Eye size={14} /> View Blueprint Sketch
               </a>
             </div>
@@ -1163,7 +1247,7 @@ export default function Landing() {
       {/* NASA PSI Informatics & Spaceflight Fire Safety Section */}
       <section className="lp-sec lp-reveal" id="psi-preview">
         <div className="lp-sec-header">
-          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>NASA PSI Flight Data</span>
+          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>NASA PSI FLIGHT DATA</span>
           <h2>NASA Physical Science Informatics & Habitat Fire Safety</h2>
           <p>
             Decades of low-gravity combustion science conducted aboard the International Space Station, drop towers, and
@@ -1171,50 +1255,82 @@ export default function Landing() {
           </p>
         </div>
 
-        <div className="lp-features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-          <div className="lp-feature-card">
-            <div className="lp-icon-box flame">
-              <Database size={22} />
+        <div className="lp-dossier-layout">
+          {/* Flight Benchmarks Ribbon */}
+          <div className="lp-dossier-metrics">
+            <div className="lp-dossier-metric-item">
+              <small>ACME (ISS CIR)</small>
+              <b>13.4% O₂ LOI</b>
+              <span>Spherical diffusion extinction limit</span>
             </div>
-            <span className="lp-feature-tag">Flight Repository</span>
-            <h3>PSI Investigations & Flammability Ranking</h3>
-            <p>
-              Explore curated NASA experiments including ACME, FLEX-2, BASS-II, and SOFIE. Filter by habitat relevance
-              across transit spacecraft, space stations, lunar bases (0.165 g), and Mars surface outposts (0.378 g).
-            </p>
-            <a href="#app?tab=psi" className="lp-feature-link">
-              Browse NASA PSI Catalog <ChevronRight size={14} />
-            </a>
+            <div className="lp-dossier-metric-item">
+              <small>FLEX-2 (ISS CIR)</small>
+              <b>21.2 mm QUENCH</b>
+              <span>Cool flame phenomenon observed</span>
+            </div>
+            <div className="lp-dossier-metric-item">
+              <small>BASS-II (MICRO-G)</small>
+              <b>0.4–1.8 mm/s</b>
+              <span>Solid fuel spread under low airflow</span>
+            </div>
+            <div className="lp-dossier-metric-item">
+              <small>SOFIE (SAFFIRE)</small>
+              <b>NASA-STD-6001</b>
+              <span>Spacecraft material flammability index</span>
+            </div>
           </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box mint">
-              <ShieldAlert size={22} />
+          {/* Asymmetric Split Dossier */}
+          <div className="lp-dossier-split">
+            <div className="lp-dossier-col">
+              <div className="lp-dossier-col-header">
+                <ShieldAlert size={20} className="text-danger" />
+                <h3>Historical Spaceflight Fires & Zero-G Physics Lessons</h3>
+              </div>
+              <p>
+                Analysis of real spaceflight combustion incidents reveals why fire in microgravity behaves completely
+                differently than on Earth:
+              </p>
+              <ul className="lp-dossier-items">
+                <li>
+                  <b>Apollo 1 (1967):</b> 100% pure high-pressure oxygen caused hyper-accelerated solid fuel flashover in &lt;15 seconds.
+                </li>
+                <li>
+                  <b>Apollo 13 (1970):</b> Cryogenic supercritical oxygen tank electrical short triggered thermochemical reaction in transit.
+                </li>
+                <li>
+                  <b>Mir Space Station (1997):</b> Solid fuel oxygen generator (perchlorate candle) ignition in microgravity; smoke failed to rise and stagnated in module corridors for days.
+                </li>
+              </ul>
+              <a href="#app?tab=psi" className="lp-feature-link" style={{ marginTop: 'auto' }}>
+                Inspect Fire Case Studies <ChevronRight size={14} />
+              </a>
             </div>
-            <span className="lp-feature-tag">Safety Governance</span>
-            <h3>Historical Spaceflight Fires & Lessons Learned</h3>
-            <p>
-              Analyze the combustion physics of Apollo 1 (hyper-oxygenated flashover), Apollo 13 (cryo tank electrical ignition),
-              and the 1997 Mir Space Station fire (zero-g smoke stagnation) to understand modern exploration fire codes.
-            </p>
-            <a href="#app?tab=psi" className="lp-feature-link">
-              Inspect Fire Case Studies <ChevronRight size={14} />
-            </a>
-          </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box purple">
-              <Globe size={22} />
+            <div className="lp-dossier-col">
+              <div className="lp-dossier-col-header">
+                <Globe size={20} className="text-mint" />
+                <h3>Spaceflight Fire Safety Technology & Earth Spinoffs</h3>
+              </div>
+              <p>
+                Crucial technologies developed for human spaceflight missions have revolutionized safety across commercial
+                aerospace, mining, and terrestrial infrastructure:
+              </p>
+              <ul className="lp-dossier-items">
+                <li>
+                  <b>NASA Spinoff #9582:</b> Non-toxic fine-water-mist fire extinguishers replacing toxic Halon across spacecraft and hospitals.
+                </li>
+                <li>
+                  <b>NASA Spinoff #9407:</b> Multi-criteria intelligent smoke detection (Ember Guardian lineage) eliminating false alarms.
+                </li>
+                <li>
+                  <b>NASA Spinoff #9918:</b> Space-suit thermal insulating polymers transferred to modern firefighter protective garments.
+                </li>
+              </ul>
+              <a href="#app?tab=psi" className="lp-feature-link" style={{ marginTop: 'auto' }}>
+                View NASA Spinoff Lineage <ChevronRight size={14} />
+              </a>
             </div>
-            <span className="lp-feature-tag">Earth Spinoffs</span>
-            <h3>Terrestrial Fire Safety Innovations</h3>
-            <p>
-              Discover how NASA microgravity research delivered non-toxic fine-water-mist fire extinguishers (Spinoff #9582),
-              multi-criteria smoke detection (Spinoff #9407 / Ember Guardian), and firefighter protective textiles (Spinoff #9918).
-            </p>
-            <a href="#app?tab=psi" className="lp-feature-link">
-              View NASA Spinoff Lineage <ChevronRight size={14} />
-            </a>
           </div>
         </div>
       </section>
@@ -1222,48 +1338,52 @@ export default function Landing() {
       {/* Microgravity Physics Section */}
       <section className="lp-sec lp-reveal" id="lab-preview">
         <div className="lp-sec-header">
-          <h2>Combustion Physics in Variable Gravitational Fields</h2>
+          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>COMBUSTION DYNAMICS</span>
+          <h2>Combustion Kinetics Across Variable Gravitational Regimes</h2>
           <p>
             On Earth, buoyancy shapes flames into flickering teardrops. In microgravity, flames become spherical
             diffusion orbs dominated by molecular transport. EMBER-ROM 0.1 lets you explore this science interactively.
           </p>
         </div>
 
-        <div className="lp-features-grid">
-          <div className="lp-feature-card">
-            <div className="lp-icon-box flame">
+        <div className="lp-orbital-lab-console">
+          <div className="lp-orbital-cell">
+            <span className="lp-orbital-cell-tag">REGIME SWEEP</span>
+            <div className="lp-icon-box flame" style={{ marginBottom: '14px' }}>
               <Sliders size={20} />
             </div>
-            <h3>Gravity Presets & Continuous Slider</h3>
+            <h3>Continuous Gravity Sweep (0 g to 2 g)</h3>
             <p>
-              Switch between 0 g Microgravity, 0.165 g Moon, 0.378 g Mars, and 1.0 g Earth, or drag the gravity slider
-              up to 2.0 g to observe buoyant velocity and convective cooling shifts.
+              Transition dynamically between 0 g Microgravity (orbital station), 0.165 g Moon, 0.378 g Mars, and 1.0 g Earth reference.
+              Observe instantaneous extinction boundary shifts and convective buoyant velocity collapse.
             </p>
-            <span className="lp-rule-badge">0 g to 2 g Continuous Sweep</span>
+            <span className="lp-rule-badge">0 g to 2.0 g Continuous Sweep</span>
           </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box info">
+          <div className="lp-orbital-cell">
+            <span className="lp-orbital-cell-tag">THERMODYNAMICS</span>
+            <div className="lp-icon-box info" style={{ marginBottom: '14px' }}>
               <Atom size={20} />
             </div>
-            <h3>Multi-Fuel & Atmospheric Controls</h3>
+            <h3>Multi-Fuel Kinetics & Energy Balance</h3>
             <p>
-              Simulate methane (CH₄), propane (C₃H₈), and ethanol vapor under atmospheric oxygen concentrations from 0%
-              up to 30%, tracking gas temperature and heat release rate live.
+              Simulate methane (CH₄), propane (C₃H₈), and ethanol vapor under variable oxygen concentrations (0% to 30%).
+              Tracks gas enthalpy, instantaneous reaction temperature, and radiative heat release rate in real time.
             </p>
-            <span className="lp-rule-badge">Lumped Energy Balance</span>
+            <span className="lp-rule-badge">Lumped ODE Energy Balance</span>
           </div>
 
-          <div className="lp-feature-card">
-            <div className="lp-icon-box mint">
+          <div className="lp-orbital-cell">
+            <span className="lp-orbital-cell-tag">SUPPRESSION KINETICS</span>
+            <div className="lp-icon-box mint" style={{ marginBottom: '14px' }}>
               <Gauge size={20} />
             </div>
-            <h3>Suppression Experiments & Comparison</h3>
+            <h3>Active Habitat Fire Suppression Protocols</h3>
             <p>
-              Test fuel cutoff, oxygen dilution below flammability limits, and enhanced wall cooling. Save experimental
-              runs to your local database and compare reaction histories side-by-side.
+              Execute and benchmark fuel supply cutoffs, nitrogen dilution below the Limiting Oxygen Index (LOI), and enhanced
+              convective wall cooling. Export time-series reaction curves directly to JSON or CSV.
             </p>
-            <span className="lp-rule-badge">Run Persist & Export (CSV/JSON)</span>
+            <span className="lp-rule-badge">Persist & Export Curves (CSV/JSON)</span>
           </div>
         </div>
       </section>
@@ -1271,82 +1391,83 @@ export default function Landing() {
       {/* 4-Step Systematic Workflow */}
       <section className="lp-sec lp-reveal" id="workflow">
         <div className="lp-sec-header">
-          <h2>How AI Room Safety Works in Practice</h2>
-          <p>A simple, systematic four-step workflow designed for homeowners, property managers, and safety auditors.</p>
+          <span className="lp-brand-badge" style={{ marginBottom: '8px', display: 'inline-block' }}>OPERATIONAL PROTOCOL</span>
+          <h2>Autonomous Spacecraft Habitat Inspection Pipeline</h2>
+          <p>A four-stage systematic verification cycle engineered for crewed space stations, lunar habitats, and exploration spacecraft.</p>
         </div>
 
-        <div className="lp-stages">
-          <div className="lp-stage-card">
-            <span className="lp-stage-num">Step 1</span>
+        <div className="lp-pipeline-ribbon">
+          <div className="lp-pipeline-step">
+            <span className="lp-pipeline-phase">PHASE 01 // TELEMETRY</span>
             <div className="lp-icon-box flame" style={{ marginBottom: 0 }}>
               <Camera size={18} />
             </div>
-            <b>Photograph Rooms</b>
-            <p>Take wide, well-lit photos showing heating equipment, cooktops, power strips, and exit doorways.</p>
+            <b>Cabin Optical Capture</b>
+            <p>Photograph wide-angle views of avionics bays, payload experiment racks, airlock doors, and ECLSS ducting.</p>
           </div>
 
-          <div className="lp-stage-card">
-            <span className="lp-stage-num">Step 2</span>
+          <div className="lp-pipeline-step">
+            <span className="lp-pipeline-phase">PHASE 02 // NEURAL INFERENCE</span>
             <div className="lp-icon-box info" style={{ marginBottom: 0 }}>
               <ScanSearch size={18} />
             </div>
-            <b>Multimodal Visual Scan</b>
-            <p>Google Gemini Flash analyzes physical clearances, combustible placement, and cord chaining in seconds.</p>
+            <b>Multi-Spectral Neural Audit</b>
+            <p>An edge AI vision model analyzes physical clearances, combustible MLI blankets, and umbilical chaining in &lt;1.5 seconds.</p>
           </div>
 
-          <div className="lp-stage-card">
-            <span className="lp-stage-num">Step 3</span>
+          <div className="lp-pipeline-step">
+            <span className="lp-pipeline-phase">PHASE 03 // REMEDIATION</span>
             <div className="lp-icon-box amber" style={{ marginBottom: 0 }}>
               <ShieldCheck size={18} />
             </div>
-            <b>Clear Action Steps</b>
-            <p>Receive plain-English guidance: exact clearance distances, cord relocation instructions, and priority level.</p>
+            <b>Actionable Crew Trajectory</b>
+            <p>Provides exact physical relocation distances, umbilical harness unchaining steps, and priority levels for crew action.</p>
           </div>
 
-          <div className="lp-stage-card">
-            <span className="lp-stage-num">Step 4</span>
+          <div className="lp-pipeline-step">
+            <span className="lp-pipeline-phase">PHASE 04 // LOGGING</span>
             <div className="lp-icon-box mint" style={{ marginBottom: 0 }}>
               <ClipboardCheck size={18} />
             </div>
-            <b>Track & Resolve</b>
-            <p>Mark findings as resolved, add personal inspection notes, and keep property safety records private.</p>
+            <b>Flight Manifest & Sync</b>
+            <p>Records all findings, hazard assessments, and resolution workflows into a secure, collaborative flight database for mission crews and ground control.</p>
           </div>
         </div>
       </section>
 
       {/* Scope, Safeguards & Limitations */}
       <section className="lp-sec lp-limitations-sec lp-reveal">
-        <div style={{ maxWidth: '880px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '980px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--flame)', marginBottom: '10px' }}>
             <Info size={18} />
-            <b style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Scientific & Safety Boundaries</b>
+            <b style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Scientific & Flight Governance</b>
           </div>
-          <h2>What Ember Is — And What It Is Not</h2>
+          <h2>Operational Scope & Spacecraft Safety Boundaries</h2>
           <p style={{ fontSize: '14.5px', color: 'var(--muted)', marginBottom: '24px' }}>
-            To maintain safety integrity, users must understand the capabilities and intentional boundaries of this platform.
+            To maintain safety integrity during space exploration missions, operators must understand the capabilities and boundaries of this platform.
           </p>
 
           <div className="lp-boundaries-grid">
             <div className="lp-boundary-card is-affirmative">
               <b style={{ color: 'var(--mint)', display: 'block', fontSize: '14px', marginBottom: '10px' }}>
-                ✓ What Ember Is
+                ✓ What Ember Spacecraft Safety Is
               </b>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'var(--text)' }}>
-                <li>• An educational reduced-order microgravity combustion simulator (EMBER-ROM 0.1).</li>
-                <li>• A proactive visual screening assistant for identifying visible hazard conditions.</li>
-                <li>• An IoT smart hardware specification and 3D digital twin (Ember Guardian).</li>
-                <li>• A private, 100% local safety notebook stored on your computer.</li>
+                <li>• An educational reduced-order microgravity combustion simulator (EMBER-ROM 0.1) calibrated with NASA flight data.</li>
+                <li>• An autonomous visual clearance screening assistant for identifying visible hazard conditions across habitats.</li>
+                <li>• An IoT spaceflight monitoring hardware specification and interactive 3D digital twin (Ember Guardian).</li>
+                <li>• A collaborative flight telemetry and experiment notebook synchronized for your mission team.</li>
               </ul>
             </div>
 
             <div className="lp-boundary-card is-limitation">
               <b style={{ color: 'var(--danger)', display: 'block', fontSize: '14px', marginBottom: '10px' }}>
-                ✕ What Ember Is Not
+                ✕ What Ember Spacecraft Safety Is Not
               </b>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
-                <li>• Not a replacement for working, certified smoke and carbon monoxide detectors.</li>
-                <li>• Cannot see inside walls, detect hidden electrical arcing, or inspect concealed spaces.</li>
-                <li>• Does not connect to or control physical fire suppression equipment.</li>
+                <li>• Not a replacement for certified spacecraft ECLSS automated fire detection and suppression subsystems.</li>
+                <li>• Cannot see inside sealed pressure hulls, inspect concealed wiring harnesses, or detect internal electrical arcing.</li>
+                <li>• Does not actuate physical spacecraft fire suppression valves or flood nitrogen systems autonomously.</li>
               </ul>
             </div>
           </div>
@@ -1357,10 +1478,10 @@ export default function Landing() {
       <section className="lp-sec lp-reveal" style={{ borderTop: 'none', paddingBottom: 0 }}>
         <div className="lp-cta-card">
           <div className="lp-cta-card-content">
-            <h2>Ready to inspect your space or explore flame science?</h2>
+            <h2>Ready to audit your habitat or explore flame science?</h2>
             <p>
-              Launch Ember on your computer. All accounts, photos, room assessments, and simulation runs remain private
-              in your local SQLite database.
+              Collaborate seamlessly with mission control and flight crews. All flight accounts, photos, compartment surveys, and combustion runs are securely synchronized
+              in your dedicated flight database.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -1394,7 +1515,7 @@ export default function Landing() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--muted)' }}>
               <span>Research Prototype · v0.2.2</span>
               <span>·</span>
-              <span>Local Single-User Architecture</span>
+              <span>Synchronized Flight Architecture</span>
             </div>
           </div>
 
@@ -1403,16 +1524,16 @@ export default function Landing() {
             <h4>Space Safety & Hardware</h4>
             <ul>
               <li>
-                <a href="#app?tab=guard">Room Photo Surveys</a>
+                <a href="#app?tab=guard">Habitat Compartment Surveys</a>
               </li>
               <li>
-                <a href="#app?tab=guard">Gemini Flash Inspection</a>
+                <a href="#app?tab=guard">AI Visual Hazard Inspection</a>
               </li>
               <li>
-                <a href="#app?tab=scanner">2D Floorplan Hazard Map</a>
+                <a href="#app?tab=scanner">2D Habitat Clearance Map</a>
               </li>
               <li>
-                <a href="#app?tab=guard">Ember Guardian 3D Node</a>
+                <a href="#app?tab=guardian">Ember Guardian 3D Node</a>
               </li>
               <li>
                 <a href="/downloads/SAFETY-MODEL.md" download>
@@ -1433,7 +1554,7 @@ export default function Landing() {
                 <a href="#app?tab=lab">Variable Gravity (0–2g)</a>
               </li>
               <li>
-                <a href="#app?tab=lab">NASA Calibration Ready</a>
+                <a href="#app?tab=lab">NASA Flight Calibrated</a>
               </li>
               <li>
                 <a href="#app?tab=experiments">Saved Experiment Runs</a>
@@ -1449,7 +1570,7 @@ export default function Landing() {
             <h4>Platform & Privacy</h4>
             <ul>
               <li>
-                <a href="#app">Local Dashboard</a>
+                <a href="#app">Mission Flight Deck</a>
               </li>
               <li>
                 <a href="/downloads/AI-SETUP.md" download>
@@ -1457,13 +1578,13 @@ export default function Landing() {
                 </a>
               </li>
               <li>
-                <a href="#login">Local Operator Sign In</a>
+                <a href="#login">Operator Sign In</a>
               </li>
               <li>
                 <a href="#signup">Create Account</a>
               </li>
               <li>
-                <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Offline SQLite Engine</span>
+                <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Cloud-Ready Database Engine</span>
               </li>
             </ul>
           </div>
@@ -1472,11 +1593,11 @@ export default function Landing() {
         {/* Footer Bottom Bar */}
         <div className="lp-top lp-footer-bottom" style={{ height: 'auto', paddingTop: '24px' }}>
           <span>
-            © 2026 Ember Research Project. Educational research prototype. Maintain approved smoke alarms independently.
+            © 2026 Ember Research Project. Educational research prototype. Maintain certified spacecraft ECLSS alarms independently.
           </span>
           <div className="lp-status-pill">
             <span className="lp-status-pill-dot" />
-            <span>Local Storage Active</span>
+            <span>Flight Database Active</span>
           </div>
         </div>
       </footer>

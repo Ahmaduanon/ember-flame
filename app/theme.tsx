@@ -19,9 +19,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ember-theme') as Theme | null;
       if (saved === 'dark' || saved === 'light') return saved;
-      return 'light';
+      return 'dark';
     }
-    return 'light';
+    return 'dark';
   });
 
   useEffect(() => {

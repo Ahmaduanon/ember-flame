@@ -18,7 +18,7 @@ function Root() {
   if (hash.startsWith('#app')) {
     return <AuthGate><Lab /></AuthGate>;
   }
-  const directTabs = ['#guard', '#scanner', '#lab', '#experiments', '#method'];
+  const directTabs = ['#guard', '#scanner', '#guardian', '#psi', '#lab', '#experiments', '#method'];
   if (directTabs.includes(hash)) {
     location.hash = '#app?tab=' + hash.slice(1);
     return <AuthGate><Lab /></AuthGate>;

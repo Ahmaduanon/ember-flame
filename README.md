@@ -21,7 +21,7 @@ Ember is an advanced, SI-powered web platform designed for space exploration fir
 │        SPACE SAFETY & AUDITING       │       COMBUSTION SCIENCE & PSI       │
 ├──────────────────────────────────────┼──────────────────────────────────────┤
 │ • Multimodal AI Visual Survey        │ • NASA PSI Flight Explorer           │
-│   (Google Gemini Flash & Ollama)     │   (ACME, FLEX-2, BASS-II, SOFIE)     │
+│   (AI Vision Model & Ollama)         │   (ACME, FLEX-2, BASS-II, SOFIE)     │
 │ • NASA Spaceflight Audit Engine      │ • Microgravity Flame Simulator       │
 │   (NASA-STD-6001, Apollo, Mir)       │   (0g Flame Balls, 1g Teardrops)     │
 │ • Mission Habitat Certifications     │ • Empirical Benchmark Calibration    │
@@ -69,8 +69,8 @@ A dedicated, interactive repository that summarizes, ranks, and interprets low-g
 ---
 
 ### 3. Space Safety & NASA Habitat Audit Engine
-- **Multimodal AI Visual Screening**: Upload high-resolution photographs of crew quarters, rovers, and experiment modules. Google Gemini Flash analyzes visible evidence without inferring speculative fire causes.
-- **Post-Gemini Automated NASA Audit**: Cross-references every visual finding against NASA spaceflight standards:
+- **Multimodal AI Visual Screening**: Upload high-resolution photographs of crew quarters, rovers, and experiment modules. The AI Vision Model analyzes visible evidence without inferring speculative fire causes.
+- **Post-Survey Automated NASA Audit**: Cross-references every visual finding against NASA spaceflight standards:
   - *Combustibles near heat* $\rightarrow$ **NASA-STD-6001 Test 1** & Apollo 1 flashover warning.
   - *Electrical daisy-chaining & cord wear* $\rightarrow$ **NASA SP-5080** & Apollo 13 wiring harness protocol.
   - *Blocked exit pathways* $\rightarrow$ **ISS SSP 50005** & Mir 1997 smoke stagnation emergency egress standard.
@@ -150,15 +150,15 @@ Ember is fully configured for continuous deployment on **[Vercel](https://vercel
 1. **Import Project**: In your Vercel Dashboard, click **Add New...** → **Project**, and select `Ahmaduanon/ember-flame`.
 2. **Framework Preset**: Vercel automatically detects `Vite` and reads `vercel.json`.
 3. **Build Command**: `npm run build:client` (Output Directory: `dist`).
-4. **Environment Variables** (Optional for live Gemini Flash vision scans):
-   - `GEMINI_API_KEY`: Your Google Gemini API key.
+4. **Environment Variables** (Optional for live cloud AI vision scans):
+   - `GEMINI_API_KEY`: Your cloud AI vision model API key.
 5. **Deploy**: Click **Deploy**. Vercel will generate your live production URL (e.g. `https://ember-flame.vercel.app`). All interactive modules (Landing, Space Habitats, 2D Scanner, 3D Guardian WebGL, NASA PSI Explorer, Combustion Lab) run seamlessly in the cloud.
 
 ---
 
-## AI Configuration (Google Gemini Flash)
+## AI Configuration (Cloud AI Vision Model)
 
-Ember uses Google's Gemini Flash multimodal vision model for rapid space habitat photo analysis:
+Ember uses an AI multimodal vision model for rapid space habitat photo analysis:
 
 1. Obtain a free API key from [Google AI Studio](https://aistudio.google.com/).
 2. Create or edit `.env` in the project root:
@@ -182,7 +182,7 @@ Ember uses Google's Gemini Flash multimodal vision model for rapid space habitat
 
 ## Testing & Quality Assurance
 
-Ember includes 34 automated unit and integration tests covering physics conservation, NASA audit mappings, AI vision schemas, 2D proximity rules, and local database persistence:
+Ember includes 34 automated unit and integration tests covering physics conservation, NASA audit mappings, AI vision schemas, 2D proximity rules, and database persistence:
 
 ```bash
 # Run full automated test suite
@@ -236,7 +236,7 @@ npm run build
 │   ├── hazards.test.mjs         # 2D hazard scanner proximity tests
 │   ├── model.test.mjs           # Combustion physics conservation & energy balance
 │   ├── nasa-audit.test.mjs      # NASA standards mapping & mission habitat checklist tests
-│   ├── server.test.mjs          # Server endpoints, security, and SQLite persistence
+│   ├── server.test.mjs          # Server endpoints, security, and database persistence
 │   └── vision.test.mjs          # AI vision formatting, fallback, and schema validation
 ├── docs/
 │   ├── AI-SETUP.md              # Multimodal vision setup (Gemini, Ollama, DeepSeek)

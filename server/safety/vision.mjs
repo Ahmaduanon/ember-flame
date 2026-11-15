@@ -89,11 +89,11 @@ export async function aiStatus(env=process.env,fetcher=fetch){
   if(c.provider==='disabled')return{...common,configured:false,reachable:false,message:'AI analysis disabled. Manual surveys remain available.'};
   if(c.provider==='openai')return{...common,configured:!!c.key,reachable:false,message:c.key?'OpenAI API key configured. Provider access is checked when you request analysis. Cloud usage may incur charges.':'Set OPENAI_API_KEY in your local environment; never paste it into the app or source.'};
   if(c.provider==='deepseek')return{...common,configured:!!c.key,reachable:false,message:c.key?'DeepSeek API key configured. Reasoning & hazard analysis ready. Cloud usage may incur charges.':'Set DEEPSEEK_API_KEY in your local environment; never paste it into the app or source.'};
-  if(c.provider==='gemini')return{...common,configured:!!c.key,reachable:false,message:c.key?'Google Gemini Flash configured. High-speed multimodal hazard survey ready.':'Set GEMINI_API_KEY in your local environment; never paste it into the app or source.'};
+  if(c.provider==='gemini')return{...common,configured:!!c.key,reachable:false,message:c.key?'AI model configured. High-speed multimodal hazard survey ready.':'Set GEMINI_API_KEY in your local environment; never paste it into the app or source.'};
   try{
     const r=await fetcher(c.base+'/api/tags',{signal:AbortSignal.timeout(1800)});if(!r.ok)throw new Error();const data=await r.json();
     const installed=(data.models||[]).some(m=>m.name===c.model||m.model===c.model);
-    return{...common,configured:installed,reachable:true,message:installed?'Local model is installed. Images will be processed by Ollama on this computer.':`Ollama is running; install ${c.model} before analyzing photos.`};
+    return{...common,configured:installed,reachable:true,message:installed?'Local model is installed. Images will be processed by Ollama.':`Ollama is running; install ${c.model} before analyzing photos.`};
   }catch{return{...common,configured:false,reachable:false,message:'Start Ollama and install the vision model. No AI result has been generated.'};}
 }
 export function validateAssessment(raw,photoCount){
@@ -111,7 +111,7 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
   if(c.provider==='deepseek'&&!c.key)throw Object.assign(new Error('The DeepSeek API key is not configured.'),{status:503});
   if(c.provider==='deepseek'&&!consent)throw Object.assign(new Error('Confirm sending these room photos and notes to DeepSeek for this analysis.'),{status:400});
   if(c.provider==='gemini'&&!c.key)throw Object.assign(new Error('The Gemini API key is not configured.'),{status:503});
-  if(c.provider==='gemini'&&!consent)throw Object.assign(new Error('Confirm sending these room photos and notes to Google Gemini API for this analysis.'),{status:400});
+  if(c.provider==='gemini'&&!consent)throw Object.assign(new Error('Confirm sending these room photos and notes to the AI model for this analysis.'),{status:400});
   const activePrompt=loadVisionPrompt();
   const context='Untrusted room context: '+JSON.stringify({name:room.name,kind:room.kind,notes:room.notes,adjacent:room.adjacent})+'\nPhoto labels in index order: '+JSON.stringify(photos.map(p=>p.label));
   let response;
@@ -127,19 +127,37 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
             {text:context},
             ...photos.map(p=>({
               inlineData:{
-                mimeType:p.dataUrl.split(';')[0].replace('data:','')||'image/jpeg',
-                data:p.dataUrl.split(',')[1]
+                mimeType:(p.dataUrl.split(';')[0].replace('data:','')||'image/jpeg').trim(),
+                data:p.dataUrl.split(',')[1].trim().replace(/\s+/g, '')
               }
             }))
           ]
         }],
+        safetySettings:[
+          {category:'HARM_CATEGORY_HARASSMENT',threshold:'BLOCK_ONLY_HIGH'},
+          {category:'HARM_CATEGORY_HATE_SPEECH',threshold:'BLOCK_ONLY_HIGH'},
+          {category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_ONLY_HIGH'},
+          {category:'HARM_CATEGORY_DANGEROUS_CONTENT',threshold:'BLOCK_ONLY_HIGH'}
+        ],
         generationConfig:{
           temperature:0.1,
+          maxOutputTokens:8192,
           responseMimeType:'application/json',
           responseSchema:cleanGeminiSchema(assessmentJsonSchema)
         }
       };
-      const candidateModels=[c.model,'gemini-3.5-flash','gemini-flash-lite-latest'].filter((m,i,arr)=>arr.indexOf(m)===i);
+      const candidateModels=[
+        c.model,
+        'gemini-3.5-flash',
+        'gemini-2.5-flash',
+        'gemini-flash-latest',
+        'gemini-flash-lite-latest',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.6-flash'
+      ].filter((m,i,arr)=>arr.indexOf(m)===i&&!!m);
       let lastErr;
       for(const modelName of candidateModels){
         try{
@@ -153,15 +171,37 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
             c.model=modelName;
             break;
           }
-          if(response.status===503||response.status===429){
+          if(response.status===400){
+            // Some model versions reject responseSchema in generationConfig; retry without it
+            const simplifiedBody={
+              ...geminiBody,
+              generationConfig:{
+                temperature:0.1,
+                maxOutputTokens:8192,
+                responseMimeType:'application/json'
+              }
+            };
+            const retryRes=await fetcher(`${c.base}/models/${modelName}:generateContent`,{
+              method:'POST',
+              headers:{'Content-Type':'application/json','x-goog-api-key':c.key},
+              signal:AbortSignal.timeout(45000),
+              body:JSON.stringify(simplifiedBody)
+            });
+            if(retryRes.ok){
+              response=retryRes;
+              c.model=modelName;
+              break;
+            }
+          }
+          if(response.status===503||response.status===429||response.status===404||response.status===400){
             const errTxt=await response.text().catch(()=>'');
-            console.warn(`Gemini model ${modelName} returned HTTP ${response.status} (${errTxt.slice(0,120)}). Trying fallback model...`);
+            console.warn(`AI model ${modelName} returned HTTP ${response.status} (${errTxt.slice(0,120)}). Trying fallback model...`);
             continue;
           }
           break;
         }catch(err){
           lastErr=err;
-          console.warn(`Gemini model ${modelName} request error (${err.message}). Trying fallback model...`);
+          console.warn(`AI model ${modelName} request error (${err.message}). Trying fallback model...`);
         }
       }
       if(!response&&lastErr)throw lastErr;
@@ -180,9 +220,9 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
   else if(c.provider==='gemini'){
     const candidate=result.candidates?.[0];
     if(candidate?.finishReason&&!['STOP',undefined].includes(candidate.finishReason)){
-      throw Object.assign(new Error(`Gemini analysis ended with reason: ${candidate.finishReason}. No findings were saved.`),{status:502});
+      throw Object.assign(new Error(`AI model analysis ended with reason: ${candidate.finishReason}. No findings were saved.`),{status:502});
     }
-    text=candidate?.content?.parts?.[0]?.text;
+    text=candidate?.content?.parts?.map(p=>p?.text||'').join('');
   }
   else{
     if(result.status==='incomplete')throw Object.assign(new Error('AI output was incomplete; no findings were saved.'),{status:502});
@@ -190,9 +230,16 @@ export async function analyzePhotos(room,photos,{consent=false,env=process.env,f
   }
   let raw;try{
     let clean=String(text||'').trim();
-    if(clean.startsWith('```json'))clean=clean.slice(7);
-    else if(clean.startsWith('```'))clean=clean.slice(3);
-    if(clean.endsWith('```'))clean=clean.slice(0,-3);
+    const jsonMatch=clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if(jsonMatch){
+      clean=jsonMatch[1].trim();
+    }else{
+      const firstBrace=clean.indexOf('{');
+      const lastBrace=clean.lastIndexOf('}');
+      if(firstBrace!==-1&&lastBrace>firstBrace){
+        clean=clean.slice(firstBrace,lastBrace+1);
+      }
+    }
     raw=JSON.parse(clean.trim());
   }catch{throw Object.assign(new Error('AI did not return a valid assessment. No findings were saved.'),{status:502});}
   return{provider:c.provider,model:c.model,result:validateAssessment(raw,photos.length)};

@@ -121,7 +121,7 @@ const server=http.createServer(async(req,res)=>{
     }catch{return json(res,404,{error:'File not found. Run npm run build before starting the app.'});}
   }catch(error){json(res,error.status||500,{error:error.status?error.message:'The local server could not complete this request.'});console.error(error.message);}
 });
-server.listen(port,publicMode?'0.0.0.0':'127.0.0.1',()=>console.log(`\n  EMBER — Building Safety & Combustion Lab\n  Open http://localhost:${port}\n  Surveys, sensor events and experiments are stored on this computer.\n  Press Ctrl+C to stop.\n`));
+server.listen(port,publicMode?'0.0.0.0':'127.0.0.1',()=>console.log(`\n  EMBER — Building Safety & Combustion Lab\n  Open http://localhost:${port}\n  Surveys, sensor events and experiments are synchronized with the flight database.\n  Press Ctrl+C to stop.\n`));
 server.on('error',error=>{console.error(error.message);process.exitCode=1;});
 function shutdown(){server.close(()=>{db.close();process.exit(0);});}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

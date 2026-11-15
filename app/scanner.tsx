@@ -4,9 +4,19 @@ import { ITEMS, ROOM_TYPES, SAMPLE_KITCHEN, evaluate, type Item, type Room, type
 
 const COLOR: Record<Severity, string> = {
   critical: 'var(--danger)',
-  high: 'var(--amber)',
-  medium: '#eab308',
-  low: '#38bdf8'
+  high: 'var(--flame)',
+  medium: 'var(--flame)',
+  low: 'var(--mint)'
+};
+
+const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  kitchen: 'Galley / Crew Mess',
+  bedroom: 'Crew Quarters / Hab',
+  living: 'Command Habitat',
+  office: 'Avionics Deck / Ops',
+  bathroom: 'Hygiene Compartment',
+  store: 'Payload / Logistics Bay',
+  workshop: 'Maintenance / Airlock'
 };
 
 const short = Object.fromEntries(ITEMS.map(i => [i.id, i.short]));
@@ -115,13 +125,13 @@ export default function Scanner() {
     <>
       <div className="section-intro">
         <div>
-          <div className="eyebrow"><span /> FIRE HAZARD SCANNER</div>
-          <h1>Find the fire before it starts.</h1>
-          <p>Map a room, place or drag items to test safe clearances, and spot risky proximity pairings in real time.</p>
+          <div className="eyebrow"><span /> 2D HABITAT CLEARANCE SCANNER</div>
+          <h1>Map habitat clearances before hot-work or mission launch.</h1>
+          <p>Map pressurized compartments, place equipment to test safe thermal clearances, and spot risky proximity pairings across spacecraft modules.</p>
         </div>
         <div className="intro-actions">
           <button className="secondary" onClick={() => { setRoom(SAMPLE_KITCHEN); setUid(100); setSelectedUid(null); }}>
-            <Layers size={14} /> Load sample layout
+            <Layers size={14} /> Load sample habitat
           </button>
           <button className="quiet" onClick={() => { setRoom({ ...room, items: [] }); setSelectedUid(null); }}>
             <RotateCcw size={14} /> Clear plan
@@ -134,9 +144,9 @@ export default function Scanner() {
           <section className="panel scan-panel">
             <div className="scan-setup">
               <label className="scan-setup-item">
-                <span>Type:</span>
-                <select aria-label="Room type" value={room.type} onChange={e => setRoom({ ...room, type: e.target.value as RoomType })}>
-                  {ROOM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <span>Module:</span>
+                <select aria-label="Habitat module type" value={room.type} onChange={e => setRoom({ ...room, type: e.target.value as RoomType })}>
+                  {ROOM_TYPES.map(t => <option key={t} value={t}>{ROOM_TYPE_LABELS[t] || t}</option>)}
                 </select>
               </label>
               <label className="scan-setup-item">
@@ -148,7 +158,7 @@ export default function Scanner() {
                 <input type="number" min={1} max={30} step={0.5} value={room.h} onChange={e => setRoom({ ...room, h: num(e.target.value, 3) })} /> m
               </label>
               <span className="scan-setup-count">
-                {room.items.length} items placed
+                {room.items.length} units placed
               </span>
             </div>
 
@@ -204,7 +214,7 @@ export default function Scanner() {
                 }}
                 onClick={handleCanvasClick}
                 role="img"
-                aria-label="Room plan. Tap to place or click and drag items to move."
+                aria-label="Habitat plan. Tap to place or click and drag items to move."
               >
                 <defs>
                   <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
@@ -254,9 +264,9 @@ export default function Scanner() {
                             cx={i.x * 100}
                             cy={i.y * 100}
                             r={38}
-                            fill="rgba(44, 182, 125, 0.15)"
-                            stroke="var(--mint)"
-                            strokeWidth={2.5}
+                            fill="rgba(234, 88, 12, 0.12)"
+                            stroke="var(--flame)"
+                            strokeWidth={2}
                             strokeDasharray="6 3"
                             className="scan-selected-halo"
                           />
@@ -265,9 +275,9 @@ export default function Scanner() {
                             cy={i.y * 100}
                             r={46}
                             fill="none"
-                            stroke="var(--mint)"
+                            stroke="var(--flame)"
                             strokeWidth={1}
-                            strokeOpacity={0.4}
+                            strokeOpacity={0.3}
                           />
                         </>
                       )}
@@ -279,7 +289,7 @@ export default function Scanner() {
                         cy={i.y * 100}
                         r={22}
                         className={'scan-dot ' + (isSelected ? 'active' : '')}
-                        stroke={isSelected ? 'var(--mint)' : undefined}
+                        stroke={isSelected ? 'var(--flame)' : undefined}
                         strokeWidth={isSelected ? 3 : 1}
                       />
                       <text x={i.x * 100} y={i.y * 100 + 4} textAnchor="middle" className="scan-label">
@@ -336,7 +346,7 @@ export default function Scanner() {
         <aside className="control-column">
           <section className="panel">
             <div className="panel-heading">
-              <h2>Room Risk Score</h2>
+              <h2>Habitat Clearance Risk Score</h2>
               <span className="scan-score" style={{ color: COLOR[result.level] }}>
                 {result.score}<small>/100</small>
               </span>
@@ -352,7 +362,7 @@ export default function Scanner() {
             </div>
 
             {!room.items.length && (
-              <p className="muted" style={{ fontSize: '13px' }}>Place furniture, appliances, and heaters on the plan to screen for fire risks.</p>
+              <p className="muted" style={{ fontSize: '13px' }}>Place equipment, power nodes, and thermal units on the habitat plan to screen for clearance conflicts.</p>
             )}
 
             <div className="scan-findings">
@@ -367,7 +377,7 @@ export default function Scanner() {
 
             <div style={{ marginTop: '18px', paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--muted)' }}>
               <Info size={14} />
-              <span>Rule-based spatial screening, not a certified fire engineering review.</span>
+              <span>Rule-based spacecraft spatial screening per NASA buffer guidelines, not a formal flight qualification review.</span>
             </div>
           </section>
         </aside>

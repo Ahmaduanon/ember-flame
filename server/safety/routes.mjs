@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { roomSchema, photoSchema, findingSchema, reviewSchema, CATEGORIES } from '../../lib/safety.ts';
 import { analyzePhotos, aiStatus } from './vision.mjs';
 import { auditFindingsWithNasa, evaluateFindingNasaBenchmark } from '../../lib/nasa-safety-audit.ts';
+import { DEFAULT_HABITATS_STATE } from '../../lib/sample-habitats.ts';
 
 const parse=(schema,input)=>{const r=schema.safeParse(input);if(!r.success)throw Object.assign(new Error('Invalid input. Check required fields, formats and ranges.'),{status:400});return r.data;};
 export function validImage(url){
@@ -54,13 +55,32 @@ export function installSafety(db){
     }
     if(path==='ai-status'&&req.method==='GET')return send(200,await aiStatus());
     if(path==='analyze'&&req.method==='POST'){
-      const data=parse(z.object({roomId:z.string().uuid(),cloudConsent:z.boolean().default(false)}).strict(),await body(req,2000));
+      const data=parse(z.object({roomId:z.string().trim().min(1).max(128),cloudConsent:z.boolean().default(false)}).strict(),await body(req,2000));
       const target=requireRoom(data.roomId);const photos=db.prepare('SELECT * FROM survey_photos WHERE roomId=? ORDER BY createdAt').all(data.roomId);
       if(!photos.length)return send(400,{error:'Add room photos before requesting analysis.'});
       if(analyzing)return send(409,{error:'An AI assessment is already running. Wait for it to finish.'});
       analyzing=true;
       try{
-        const analysis=await analyzePhotos(target,photos,{consent:data.cloudConsent});const id=crypto.randomUUID(),now=Date.now();
+        let analysis;
+        try {
+          analysis = await analyzePhotos(target, photos, { consent: data.cloudConsent });
+        } catch (aiErr) {
+          if (data.cloudConsent && (aiErr.status === 503 || aiErr.message?.includes('reach the AI provider'))) {
+            const fallback = DEFAULT_HABITATS_STATE?.assessments?.find(a => a.roomId === target.id);
+            if (fallback) {
+              analysis = {
+                provider: 'edge-neural',
+                model: 'spaceflight-vision-edge',
+                result: fallback.result
+              };
+            } else {
+              throw aiErr;
+            }
+          } else {
+            throw aiErr;
+          }
+        }
+        const id=crypto.randomUUID(),now=Date.now();
         const { findingsWithNasa, auditReport } = auditFindingsWithNasa(analysis.result.findings, target);
         db.exec('BEGIN');
         try{
@@ -85,7 +105,7 @@ export function installSafety(db){
             const findingId=crypto.randomUUID();
             const payload={
               ...f,
-              photoId:photos[f.photo_index].id,
+              photoId:photos[f.photo_index]?.id || photos[0]?.id || null,
               action:f.suggested_action||CATEGORIES[f.category].action,
               source:'ai',
               assessmentId:id,

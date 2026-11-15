@@ -21,7 +21,6 @@ import {
   Search,
   Shield,
   ShieldAlert,
-  Sparkles,
   Thermometer,
   Video,
   Wind,
@@ -65,6 +64,16 @@ export default function PsiExplorer({ onLoadSimulation, onNavigateToTab }: PsiEx
     }
     return list;
   }, [habitatFilter, searchQuery]);
+
+  const { loiRange, quenchRange } = useMemo(() => {
+    const list = filteredInvestigations.length ? filteredInvestigations : PSI_INVESTIGATIONS;
+    const lois = list.map(i => i.flammabilityMetrics.loi);
+    const quenches = list.map(i => i.flammabilityMetrics.quenchDiameterMm);
+    return {
+      loiRange: `${Math.min(...lois)}% – ${Math.max(...lois)}%`,
+      quenchRange: `${Math.min(...quenches).toFixed(1)} – ${Math.max(...quenches).toFixed(1)} mm`
+    };
+  }, [filteredInvestigations]);
 
   function exportInvestigationJSON(inv: PsiInvestigation) {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(inv, null, 2));
@@ -218,12 +227,12 @@ export default function PsiExplorer({ onLoadSimulation, onNavigateToTab }: PsiEx
               <span className="psi-stat-desc">Curated PSI Investigations</span>
             </div>
             <div className="psi-stat-card">
-              <span className="psi-stat-number">11.5% – 14.5%</span>
+              <span className="psi-stat-number">{loiRange}</span>
               <span className="psi-stat-desc">Limiting Oxygen Index (LOI) Range</span>
             </div>
             <div className="psi-stat-card">
-              <span className="psi-stat-number">16.0 – 21.2 mm</span>
-              <span className="psi-stat-desc">Quenching Diameters in Low-G</span>
+              <span className="psi-stat-number">{quenchRange}</span>
+              <span className="psi-stat-desc">Quenching Dimensions in Low-G</span>
             </div>
             <div className="psi-stat-card">
               <span className="psi-stat-number">FLEX-2</span>
@@ -282,7 +291,7 @@ export default function PsiExplorer({ onLoadSimulation, onNavigateToTab }: PsiEx
                       <b>{inv.flammabilityMetrics.loi}% O₂</b>
                     </div>
                     <div className="psi-metric-cell">
-                      <small>Quench Diameter</small>
+                      <small>{inv.acronym === 'BASS-II' ? 'Quench Thickness' : 'Quench Diameter'}</small>
                       <b>{inv.flammabilityMetrics.quenchDiameterMm} mm</b>
                     </div>
                     <div className="psi-metric-cell">
@@ -293,10 +302,14 @@ export default function PsiExplorer({ onLoadSimulation, onNavigateToTab }: PsiEx
                       <small>Critical Strain Rate</small>
                       <b>{inv.flammabilityMetrics.extinctionStrainRate}</b>
                     </div>
+                    <div className="psi-metric-cell psi-metric-cell-wide">
+                      <small>Flame Spread Rate</small>
+                      <b>{inv.flammabilityMetrics.flameSpreadRate}</b>
+                    </div>
                   </div>
                   {inv.flammabilityMetrics.coolFlameObserved && (
                     <div className="psi-cool-flame-note">
-                      <Sparkles size={13} />
+                      <Flame size={13} />
                       <span>
                         <b>Cool Flame Observed:</b> Low-temperature quasi-steady burning continues invisibly at ~600–800 K
                         after luminous flame extinction.

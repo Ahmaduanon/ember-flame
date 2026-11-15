@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Flame, Shield, ArrowRight, UserCheck } from 'lucide-react';
-import { useTheme } from './theme';
 
 export type User = { id: string; name: string; email: string };
 
@@ -24,9 +23,10 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [pub, setPub] = useState(false);
-  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.style.colorScheme = 'dark';
     fetch('/api/health').then(r => r.json()).then(j => setPub(j.mode === 'public')).catch(() => {});
     fetch('/api/auth/me').then(r => { if (r.ok) location.hash = '#app'; }).catch(() => {});
   }, []);
@@ -72,26 +72,23 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           <b>ember</b>
         </a>
         <nav>
-          <button className="theme-toggle-btn" onClick={toggleTheme}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
           <a href="#">Back to site</a>
         </nav>
       </header>
 
       <section className="auth-page-container">
         <div className="auth-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--mint)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--flame)' }}>
             <Shield size={18} />
-            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>Local Security</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>Mission Security</span>
           </div>
           <h2>{signup ? 'Create your account' : 'Sign in to Ember'}</h2>
           {pub ? (
-            <p className="lp-lead">Accounts are not available on the public site. Run Ember on your own computer to use the lab.</p>
+            <p className="lp-lead">Sign in with your researcher credentials or enter the simulation demo below to access the lab.</p>
           ) : (
             <>
               <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '20px' }}>
-                {signup ? 'Accounts live on this computer. Use at least 10 characters for the password.' : 'Access your space safety surveys and combustion experiments.'}
+                {signup ? 'Create your flight research account. Use at least 10 characters for the password.' : 'Access your space safety surveys and combustion experiments.'}
               </p>
               <form onSubmit={submit} style={{ display: 'grid', gap: '14px' }}>
                 {signup && (
@@ -138,7 +135,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
                 {err && <p className="lp-err" role="alert">{err}</p>}
               </form>
               <p style={{ marginTop: '18px', fontSize: '13px', color: 'var(--muted)' }}>
-                {signup ? <>Already have an account? <a href="#login" style={{ color: 'var(--mint)', fontWeight: 600 }}>Sign in</a></> : <>New here? <a href="#signup" style={{ color: 'var(--mint)', fontWeight: 600 }}>Create an account</a></>}
+                {signup ? <>Already have an account? <a href="#login" style={{ color: 'var(--flame)', fontWeight: 600 }}>Sign in</a></> : <>New here? <a href="#signup" style={{ color: 'var(--flame)', fontWeight: 600 }}>Create an account</a></>}
               </p>
             </>
           )}

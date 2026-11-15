@@ -12,9 +12,9 @@ No automated finding certifies a spacecraft or habitat as flight-ready. All asse
 
 1. **Photographic Ingestion**:
    - Captures up to four high-resolution photos per habitable space.
-   - Preserves raw photographic evidence in local SQLite storage with unique UUIDs.
+   - Preserves raw photographic evidence in secure database storage with unique UUIDs.
 2. **AI Provider Interface**:
-   - Primary: **Google Gemini Flash** (`gemini-3.5-flash` with automatic fallback from `gemini-3.8-flash`).
+   - Primary: **AI Vision Cloud Model** (with automatic model fallback).
    - Local Offline: **Ollama** (`gemma3:4b` or `llama3.2-vision`) with zero external network transmission.
    - Cloud Alternatives: **DeepSeek** and **OpenAI**.
 3. **Strict Structured Output Schema**:
@@ -43,7 +43,7 @@ Immediately upon receipt of the AI's visual findings, Ember executes the determi
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │             Multimodal AI Visual Survey                │
-│             (Google Gemini Flash / Ollama)             │
+│             (AI Vision Model / Ollama)                 │
 └───────────────────────────┬────────────────────────────┘
                             │ Parsed Findings
                             ▼
@@ -102,6 +102,6 @@ Every crewed space is evaluated across four operational mission profiles:
 
 ## 4. Privacy & Data Boundary
 
-- **Local Storage**: All survey photographs, finding metadata, and NASA audit records are stored in local SQLite (`data/ember.sqlite`).
+- **Database Storage**: All survey photographs, finding metadata, and NASA audit records are stored in the flight database.
 - **Zero Third-Party Telemetry**: API keys stay strictly on the local Node.js server and are never delivered to the client browser.
-- **Explicit Cloud Consent**: Image transmission to cloud providers (Gemini, DeepSeek, OpenAI) requires explicit per-request user consent.
+- **Explicit Cloud Consent**: Image transmission to cloud providers (Cloud AI, DeepSeek, OpenAI) requires explicit per-request user consent.

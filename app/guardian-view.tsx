@@ -59,10 +59,10 @@ export default function GuardianView() {
       <div className="section-intro guardian-intro">
         <div>
           <div className="eyebrow">
-            <Cpu size={14} /> HARDWARE BLUEPRINT & SPECIFICATION
+            <Cpu size={14} /> SPACE HABITAT HARDWARE BLUEPRINT & SPECIFICATION
           </div>
-          <h1>Smart Temperature Monitoring Device</h1>
-          <p className="guardian-tagline">“Monitor. Alert. Stay Safe.”</p>
+          <h1>Ember Guardian Spaceflight Environmental Node</h1>
+          <p className="guardian-tagline">“Active microgravity air aspiration, thermal tracking & audible crew telemetry.”</p>
         </div>
         <div className="intro-actions">
           <a
@@ -395,7 +395,7 @@ export default function GuardianView() {
               </div>
               <div>
                 <b>IoT Connectivity</b>
-                <p>Seamless local LAN communication with Ember hub & cloud.</p>
+                <p>Seamless communication with Ember cloud database & flight hub.</p>
               </div>
             </div>
 
@@ -476,10 +476,10 @@ export default function GuardianView() {
             <div className="step-icon">
               <Bell size={20} />
             </div>
-            <h3>Local & Cloud Synchronization</h3>
+            <h3>Cloud & Edge Telemetry Synchronization</h3>
             <p>
-              Transmits encrypted JSON telemetry over 2.4 GHz Wi-Fi to your local Ember Hub and
-              pushes instant notifications to all connected devices.
+              Transmits encrypted JSON telemetry over 2.4 GHz Wi-Fi to your flight database and
+              pushes instant notifications to all connected crew consoles.
             </p>
           </div>
         </div>

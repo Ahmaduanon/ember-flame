@@ -1,5 +1,5 @@
-import type { SafetyState, Room, Finding, Assessment, Photo } from './safety';
-import { auditFindingsWithNasa } from './nasa-safety-audit';
+import type { SafetyState, Room, Finding, Assessment, Photo } from './safety.ts';
+import { auditFindingsWithNasa } from './nasa-safety-audit.ts';
 
 const NOW = 1794680000000;
 

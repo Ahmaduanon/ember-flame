@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Activity, AlertTriangle, ArrowDownToLine, ArrowRight, Beaker, BookOpen, Check, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Cpu, Database, Download, Earth, Flame, FolderOpen, Gauge, GitCompareArrows, Home, Layers, Menu, Moon, Orbit, PanelLeft, PanelLeftClose, PanelLeftOpen, Pause, Play, Radio, RotateCcw, Save, Settings2, Shield, ShieldAlert, SlidersHorizontal, Snowflake, Sun, Thermometer, Trash2, Waves, Wind, X, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowDownToLine, ArrowRight, Beaker, BookOpen, Check, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Cpu, Database, Download, Earth, Flame, FolderOpen, Gauge, GitCompareArrows, Home, Layers, LogOut, Menu, Moon, Orbit, PanelLeft, PanelLeftClose, PanelLeftOpen, Pause, Play, Radio, RotateCcw, Save, Settings2, Shield, ShieldAlert, SlidersHorizontal, Snowflake, Sun, Thermometer, Trash2, Waves, Wind, X, Zap } from 'lucide-react';
 import { DEFAULTS, FUELS, PRESETS, MODEL_VERSION, computeInstantaneousState, gravityLabel, initialState, regime, sample, step, type Fuel, type Intervention, type Point, type Settings, type SimState } from '@/lib/model';
 import { matchNasaDataset, HISTORICAL_FIRE_INCIDENTS, PSI_INVESTIGATIONS } from '@/lib/nasa-data';
 import FlameView, {type Layer} from './flame-view';
@@ -19,9 +19,9 @@ type Event = { time: number; text: string };
 type Run = { id: string; title: string; createdAt: number; payload: { model: string; settings: Settings; initialSettings: Settings; intervention: Intervention; points: Point[]; events: Event[]; status: string } };
 
 const homeNav = [
-  { id: 'guard' as Tab, label: 'Safety / Rooms', shortLabel: 'Safety', icon: Shield, subtitle: 'Checklists, Photos & AI Fixes' },
-  { id: 'scanner' as Tab, label: '2D Map', shortLabel: '2D Map', icon: Layers, subtitle: '2D Spatial Risk Planner' },
-  { id: 'guardian' as Tab, label: 'Guardian 3D', shortLabel: 'Guardian', icon: Cpu, subtitle: '3D Guardian Blueprint & Specs' }
+  { id: 'guard' as Tab, label: 'Habitat Safety', shortLabel: 'Hab Safety', icon: Shield, subtitle: 'Cabin Modules & AI Inspections' },
+  { id: 'scanner' as Tab, label: '2D Clearance Map', shortLabel: '2D Map', icon: Layers, subtitle: 'Habitat Spatial Clearances' },
+  { id: 'guardian' as Tab, label: 'Guardian IoT', shortLabel: 'Guardian', icon: Cpu, subtitle: '3D Spaceflight Node & Specs' }
 ];
 
 const scienceNav = [
@@ -329,7 +329,7 @@ export default function Lab() {
       });
       if (!r.ok) throw new Error((await r.json()).error || 'Could not save experiment.');
       setSaveOpen(false);
-      notify('Experiment saved on this computer.');
+      notify('Experiment saved to flight database.');
       await loadRuns();
     } catch {
       // Offline / Vercel fallback
@@ -343,7 +343,7 @@ export default function Lab() {
       setRuns(updated);
       if (typeof window !== 'undefined') localStorage.setItem('ember_saved_runs', JSON.stringify(updated));
       setSaveOpen(false);
-      notify('Experiment saved locally.');
+      notify('Experiment saved.');
     } finally {
       setSaving(false);
     }
@@ -360,7 +360,7 @@ export default function Lab() {
   }
 
   async function remove(run: Run) {
-    if (!window.confirm(`Delete “${run.title}” from this computer?`)) return;
+    if (!window.confirm(`Delete “${run.title}” from database?`)) return;
     try {
       const r = await fetch('/api/runs?id=' + encodeURIComponent(run.id), { method: 'DELETE' });
       if (!r.ok) throw new Error('Could not delete experiment.');
@@ -512,12 +512,12 @@ export default function Lab() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="local-storage" title={collapsed ? "Private Local Storage: Active" : undefined}>
+          <div className="local-storage" title={collapsed ? "Flight Database: Connected" : undefined}>
             <Database size={13} />
-            {!collapsed && <span>Private Local Storage</span>}
+            {!collapsed && <span>Flight Database</span>}
             <i />
           </div>
-          {!collapsed && <small className="sidebar-version">RESEARCH PROTOTYPE / v0.2.1</small>}
+          {!collapsed && <small className="sidebar-version">PROTOTYPE / v0.2.1</small>}
         </div>
       </aside>
 
@@ -538,13 +538,13 @@ export default function Lab() {
               <button
                 className={`topbar-sentinel ${hasUrgent ? 'alarm' : hasReview ? 'warning' : 'ok'} ${safetyMenuOpen ? 'menu-active' : ''}`}
                 onClick={() => setSafetyMenuOpen(prev => !prev)}
-                title="Click to view room hazard alerts"
+                title="Click to view habitat hazard alerts"
                 aria-expanded={safetyMenuOpen}
                 aria-haspopup="dialog"
               >
                 <span className="sentinel-pulse" />
                 <span className="sentinel-label-desktop">
-                  {hasUrgent ? `${urgentCount} Urgent Hazard${urgentCount === 1 ? '' : 's'}` : hasReview ? `${openFindings.length} Items To Review` : 'All Spaces Clear'}
+                  {hasUrgent ? `${urgentCount} Urgent Hazard${urgentCount === 1 ? '' : 's'}` : hasReview ? `${openFindings.length} Items To Review` : 'All Modules Nominal'}
                 </span>
                 <span className="sentinel-label-mobile">
                   {hasUrgent ? `${urgentCount} URGENT` : hasReview ? `${openFindings.length}` : 'OK'}
@@ -553,7 +553,7 @@ export default function Lab() {
               </button>
 
               {safetyMenuOpen && (
-                <div className="safety-dropdown-menu" role="dialog" aria-label="Room Hazard Alerts">
+                <div className="safety-dropdown-menu" role="dialog" aria-label="Habitat Hazard Alerts">
                   <div className="safety-dropdown-header">
                     <div className="safety-dropdown-header-title">
                       {hasUrgent ? (
@@ -564,8 +564,8 @@ export default function Lab() {
                         <CheckCircle2 size={16} className="text-success shrink-0" />
                       )}
                       <div>
-                        <b>Room Safety Alerts</b>
-                        <small>{hasUrgent ? `${urgentCount} urgent room hazard${urgentCount === 1 ? '' : 's'}` : hasReview ? `${openFindings.length} pending review item${openFindings.length === 1 ? '' : 's'}` : 'All spaces clear'}</small>
+                        <b>Habitat Safety Alerts</b>
+                        <small>{hasUrgent ? `${urgentCount} urgent habitat hazard${urgentCount === 1 ? '' : 's'}` : hasReview ? `${openFindings.length} pending review item${openFindings.length === 1 ? '' : 's'}` : 'All modules clear'}</small>
                       </div>
                     </div>
                     <button
@@ -581,7 +581,7 @@ export default function Lab() {
                   <div className="safety-dropdown-body">
                     {roomsWithHazards.length > 0 ? (
                       <div className="safety-dropdown-rooms-list">
-                        <div className="safety-dropdown-section-label">Rooms requiring attention:</div>
+                        <div className="safety-dropdown-section-label">Modules requiring attention:</div>
                         {roomsWithHazards.map(r => (
                           <button
                             key={r.id}
@@ -612,7 +612,7 @@ export default function Lab() {
                                   )}
                                 </div>
                               </div>
-                              <div className="room-meta-sub">{r.building} · {r.floor || 'Floor not set'}</div>
+                              <div className="room-meta-sub">{r.building} · {r.floor || 'Deck not set'}</div>
                               {r.topFinding && (
                                 <div className="room-top-finding" title={r.topFinding.title}>
                                   <span className="finding-bullet">•</span> {r.topFinding.title}
@@ -626,11 +626,11 @@ export default function Lab() {
                     ) : (
                       <div className="safety-dropdown-clear-state">
                         <CheckCircle2 size={32} className="text-success" />
-                        <b>All Monitored Spaces Clear</b>
-                        <p>No open hazards or pending reviews across your rooms.</p>
+                        <b>All Habitat Modules Clear</b>
+                        <p>No open hazards or pending clearance items across your habitat modules.</p>
                         {safety.data.rooms.length > 0 && (
                           <div className="safety-dropdown-clear-rooms">
-                            <span className="clear-rooms-label">Quick select room to inspect:</span>
+                            <span className="clear-rooms-label">Quick select module to inspect:</span>
                             <div className="clear-rooms-chips">
                               {safety.data.rooms.map(r => (
                                 <button
@@ -662,7 +662,7 @@ export default function Lab() {
                       }}
                     >
                       <Shield size={13} />
-                      <span>Open Room Safety Hub</span>
+                      <span>Open Habitat Safety Hub</span>
                     </button>
                     <button
                       className="safety-dropdown-maplink"
@@ -670,10 +670,10 @@ export default function Lab() {
                         setTab('scanner');
                         setSafetyMenuOpen(false);
                       }}
-                      title="Open 2D Hazard Map"
+                      title="Open 2D Habitat Clearance Map"
                     >
                       <Layers size={13} />
-                      <span>Hazard Map</span>
+                      <span>Clearance Map</span>
                     </button>
                   </div>
                 </div>
@@ -690,17 +690,7 @@ export default function Lab() {
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
 
-            {/* Help Link */}
-            <button
-              className="icon-button"
-              title="Model documentation & science"
-              aria-label="Open model documentation"
-              onClick={() => setTab('method')}
-            >
-              <CircleHelp size={17} />
-            </button>
-
-            {/* Integrated User Profile Menu (replaces floating chip) */}
+            {/* Integrated User Profile Menu */}
             {user && (
               <div className="topbar-user">
                 <div className="topbar-user-avatar" title={user.name}>
@@ -708,10 +698,16 @@ export default function Lab() {
                 </div>
                 <div className="topbar-user-info hidden sm:flex">
                   <span className="topbar-user-name">{user.name}</span>
-                  <span className="topbar-user-role">Local Operator</span>
+                  <span className="topbar-user-role">Flight Specialist</span>
                 </div>
-                <button className="topbar-signout-btn" onClick={logout} title="Sign out of Ember">
-                  Sign out
+                <button
+                  className="topbar-signout-btn"
+                  onClick={logout}
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={13} className="shrink-0" />
+                  <span className="signout-label">Sign out</span>
                 </button>
               </div>
             )}
@@ -1030,7 +1026,7 @@ export default function Lab() {
               </div>
 
               <div className="experiments-heading">
-                <span>{runs.length} saved experiments · stored on this computer</span>
+                <span>{runs.length} saved experiments · synchronized database</span>
                 <button className="quiet" onClick={loadRuns}><RotateCcw size={13} /> Refresh</button>
               </div>
 
@@ -1275,7 +1271,7 @@ export default function Lab() {
                   </div>
                   <div className="more-item-text">
                     <b>Saved Runs & Comparisons</b>
-                    <small>Curves, traces and local experiment notebook</small>
+                    <small>Curves, traces and synchronized experiment notebook</small>
                   </div>
                   <ChevronRight size={16} className="more-item-arrow" />
                 </button>
@@ -1360,7 +1356,7 @@ export default function Lab() {
                         setMoreNavOpen(false);
                         void logout();
                       }}
-                      title="Sign out of local account"
+                      title="Sign out"
                     >
                       <span>Sign Out ({userInitials})</span>
                     </button>
@@ -1376,7 +1372,7 @@ export default function Lab() {
         <Dialog label="Save experiment" onClose={() => setSaveOpen(false)}>
           <div className="modal-symbol"><Save size={22} /></div>
           <h2>Save this discovery.</h2>
-          <p>Keep the conditions, calculated traces and timeline in your local notebook.</p>
+          <p>Keep the conditions, calculated traces and timeline in your flight notebook.</p>
           <form onSubmit={e => { e.preventDefault(); void save(); }}>
             <label className="field-label" htmlFor="run-title">Experiment name</label>
             <input

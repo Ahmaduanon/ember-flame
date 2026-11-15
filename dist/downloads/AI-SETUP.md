@@ -4,9 +4,9 @@ Ember integrates multimodal AI models to perform visual fire hazard screening on
 
 ---
 
-## 1. Google Gemini Flash — Recommended Cloud API (High-Speed & Native Schema)
+## 1. Cloud AI Vision Model — Recommended Cloud API (High-Speed & Native Schema)
 
-Google Gemini Flash (`gemini-3.5-flash` with automatic fallback from `gemini-3.8-flash`) provides fast multimodal vision analysis and strict structured JSON output matching Ember's typed schema.
+The AI Vision Model provides fast multimodal vision analysis and strict structured JSON output matching Ember's typed schema.
 
 ### Quick Setup:
 1. Obtain an API key from [Google AI Studio](https://aistudio.google.com/).
@@ -17,10 +17,10 @@ GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
-*(When `GEMINI_API_KEY` is present in `.env`, Ember automatically selects Gemini Flash as the active vision provider).*
+*(When `GEMINI_API_KEY` is present in `.env`, Ember automatically selects the cloud AI vision model as the active vision provider).*
 
 3. Start Ember (`npm run dev`) and open **Space Safety → Space Safety & Prevention**.
-4. Check the **AI Visual Hazard Inspection** card. It will indicate **Google Gemini Flash (Ready)**.
+4. Check the **AI Visual Hazard Inspection** card. It will indicate **AI Cloud Model (Ready)**.
 5. Upload space habitat photos, check the cloud consent box, and click **Analyze photos for hazards**.
 6. The AI findings will immediately appear alongside the **NASA Spaceflight Fire Safety Compliance Audit** and the **Mission Habitat Certification Checklist**.
 

@@ -76,7 +76,7 @@ export function SafetyBanner({ data, error, onOpen }: { data: SafetyState; error
     return (
       <button className="global-alert fault" onClick={onOpen}>
         <AlertTriangle size={17} />
-        <span>Monitoring connection unavailable. Open Room Safety to check local server.</span>
+        <span>Monitoring connection unavailable. Open Habitat Safety to check flight server status.</span>
         <ArrowRight size={16} />
       </button>
     );
@@ -88,7 +88,7 @@ export function SafetyBanner({ data, error, onOpen }: { data: SafetyState; error
       <button className="global-alert danger" onClick={onOpen}>
         <AlertTriangle size={18} />
         <span>
-          <b>ACTION NEEDED: {urgentFindings.length} urgent fire hazard(s) flagged.</b> Review recommended fixes for your spaces.
+          <b>ACTION NEEDED: {urgentFindings.length} urgent habitat hazard(s) flagged.</b> Review recommended fixes for your habitat modules.
         </span>
         <ArrowRight size={16} />
       </button>
@@ -99,7 +99,7 @@ export function SafetyBanner({ data, error, onOpen }: { data: SafetyState; error
       <button className="global-alert watch" onClick={onOpen}>
         <AlertTriangle size={18} />
         <span>
-          <b>{openFindings.length} safety item(s) to review.</b> Check recent room survey findings.
+          <b>{openFindings.length} habitat safety item(s) to review.</b> Check recent compartment survey findings.
         </span>
         <ArrowRight size={16} />
       </button>
@@ -293,9 +293,9 @@ function CameraCaptureModal({
           <X size={18} />
         </button>
 
-        <h2>Take Room Photo</h2>
+        <h2>Capture Module Photo</h2>
         <p style={{ margin: '0 0 14px', fontSize: '13px', color: 'var(--muted)' }}>
-          Position heating equipment, electrical strips, cooktops, or doors clearly in frame for {roomName}.
+          Position thermal radiators, wire harnesses, galley heaters, or airlock hatches clearly in frame for {roomName}.
         </p>
 
         {errorMsg ? (
@@ -309,7 +309,7 @@ function CameraCaptureModal({
         ) : (
           <div className="camera-viewfinder-container">
             {captured ? (
-              <img src={captured} alt="Captured room view preview" className="camera-preview-image" />
+              <img src={captured} alt="Captured module view preview" className="camera-preview-image" />
             ) : (
               <>
                 <video ref={videoRef} autoPlay playsInline muted className="camera-live-video" />
@@ -341,7 +341,7 @@ function CameraCaptureModal({
                 <RotateCcw size={14} /> Retake
               </button>
               <button className="primary" onClick={() => void handleSave()} disabled={saving}>
-                <Check size={14} /> {saving ? 'Saving…' : 'Save Photo to Room'}
+                <Check size={14} /> {saving ? 'Saving…' : 'Save Photo to Module'}
               </button>
             </>
           ) : (
@@ -447,7 +447,7 @@ export default function SafetyDashboard({
 
   function handleTakePhotoClick() {
     if (photos.length >= 4) {
-      notify('Maximum of 4 photos per room allowed.');
+      notify('Maximum of 4 photos per module allowed.');
       return;
     }
     if (typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') {
@@ -476,7 +476,7 @@ export default function SafetyDashboard({
     try {
       const [status] = await Promise.all([api('ai-status'), new Promise(r => setTimeout(r, 600))]);
       setAi(status);
-      const name = status.provider === 'gemini' ? 'Google Gemini Flash' : status.provider === 'deepseek' ? 'DeepSeek' : status.provider === 'ollama' ? 'Ollama' : status.provider;
+      const name = status.provider === 'gemini' ? 'AI Cloud Model' : status.provider === 'deepseek' ? 'DeepSeek' : status.provider === 'ollama' ? 'Ollama' : status.provider;
       notify(`AI provider checked: ${name} (${status.configured ? 'Ready' : 'Not configured'})`);
     } catch (e) {
       notify((e as Error).message);
@@ -513,7 +513,7 @@ export default function SafetyDashboard({
         };
         localStorage.setItem('ember_local_safety_state', JSON.stringify(updated));
         await reload();
-        notify(success + ' (Saved locally)');
+        notify(success + ' (Saved to database)');
         return { ok: true };
       }
       notify((e as Error).message);
@@ -526,7 +526,7 @@ export default function SafetyDashboard({
   async function createRoom(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await mutate('rooms', 'POST', Object.fromEntries(form.entries()), 'Room added to building survey.');
+    const result = await mutate('rooms', 'POST', Object.fromEntries(form.entries()), 'Module added to habitat survey.');
     if (result) {
       setRoomId(result.id);
       setNewRoom(false);
@@ -540,14 +540,14 @@ export default function SafetyDashboard({
     setBusy(true);
     try {
       const picked = Array.from(files);
-      if (photos.length + picked.length > 4) throw new Error('Maximum of 4 photos per room allowed.');
+      if (photos.length + picked.length > 4) throw new Error('Maximum of 4 photos per module allowed.');
       for (const file of picked) {
         const dataUrl = await prepareImage(file);
-        await api('photos', 'POST', { roomId: id, label: file.name.slice(0, 80) || 'Room view', dataUrl });
+        await api('photos', 'POST', { roomId: id, label: file.name.slice(0, 80) || 'Module view', dataUrl });
       }
       await loadPhotos(id);
       await reload();
-      notify('Photos saved locally.');
+      notify('Photos saved to database.');
     } catch (e) {
       notify((e as Error).message);
     } finally {
@@ -608,7 +608,7 @@ export default function SafetyDashboard({
             <Bell size={14} /> Enable alerts
           </button>
           <button className="primary" onClick={() => setNewRoom(true)}>
-            <Plus size={14} /> Add a room
+            <Plus size={14} /> Add Module
           </button>
         </div>
       </div>
@@ -619,22 +619,22 @@ export default function SafetyDashboard({
           <div>
             <b>
               {hasAlarm
-                ? `Action Needed: ${urgentFindings.length} urgent fire hazard(s) flagged!`
+                ? `Action Needed: ${urgentFindings.length} urgent habitat hazard(s) flagged!`
                 : hasWarning
                 ? `${openFindings.length} Safety items need your attention`
-                : 'All Clear: No unresolved fire hazards flagged in your spaces'}
+                : 'All Clear: No unresolved fire hazards flagged in your habitat modules'}
             </b>
             <p>
               {hasAlarm
                 ? 'Review the urgent findings below and follow the recommended step-by-step actions.'
                 : hasWarning
                 ? 'Review open findings below and follow the recommended guidance to maintain safety.'
-                : 'Your spaces are currently clear and all recorded action items have been addressed.'}
+                : 'Your habitat modules are currently clear and all recorded action items have been addressed.'}
             </p>
           </div>
         </div>
         <div className="status-summary-pills">
-          <span><b>{data.rooms.length}</b> Spaces</span>
+          <span><b>{data.rooms.length}</b> Modules</span>
           <span><b>{totalPhotos}</b> Photos</span>
           <span><b>{openFindings.length}</b> Open Fixes</span>
         </div>
@@ -643,15 +643,15 @@ export default function SafetyDashboard({
       <div className="guard-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-heading)', fontWeight: 600, fontSize: '14px' }}>
           <Camera size={16} />
-          <span>Room Checklists & Photo Inspections</span>
+          <span>Habitat Modules & Photo Inspections</span>
         </div>
         <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
           {onOpenScanner && (
-            <button className="secondary" onClick={onOpenScanner} title="Open 2D Floorplan Hazard Map">
-              <Layers size={14} /> <span>2D Hazard Map</span>
+            <button className="secondary" onClick={onOpenScanner} title="Open 2D Habitat Clearance Map">
+              <Layers size={14} /> <span>2D Clearance Map</span>
             </button>
           )}
-          <button className="quiet" onClick={reload} title="Refresh space data">
+          <button className="quiet" onClick={reload} title="Refresh habitat data">
             <RefreshCw size={13} /> <span>Refresh</span>
           </button>
         </div>
@@ -660,25 +660,25 @@ export default function SafetyDashboard({
       {error && (
         <div className="global-alert fault" role="alert" style={{ marginBottom: '18px' }}>
           <AlertTriangle size={16} />
-          <span>Could not refresh room data: {error}.</span>
+          <span>Could not refresh habitat data: {error}.</span>
         </div>
       )}
 
       <div className={`survey-layout ${selected ? 'has-selected-room' : ''}`}>
         <aside className="panel room-list">
           <div className="panel-heading">
-            <h2>Your spaces</h2>
+            <h2>Habitat Modules</h2>
             <Building2 size={16} />
           </div>
-          <label className="field-label" htmlFor="building-filter">Filter by Vehicle / Facility</label>
+          <label className="field-label" htmlFor="building-filter">Filter by Habitat / Complex</label>
           <select id="building-filter" value={building} onChange={e => { setBuilding(e.target.value); setRoomId(''); }}>
-            <option value="all">All vehicles & facilities ({data.rooms.length})</option>
+            <option value="all">All Vehicles & Habitats ({data.rooms.length})</option>
             {buildings.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
 
           {!rooms.length ? (
             <p className="muted no-rooms" style={{ fontSize: '12px', padding: '12px', textAlign: 'center' }}>
-              Add a space to document a rover, habitat, or laboratory module.
+              Add a module to document a pressurized rover cabin, orbital habitat, or laboratory rack.
             </p>
           ) : (
             rooms.map(r => (
@@ -686,7 +686,7 @@ export default function SafetyDashboard({
                 <Home size={16} className="shrink-0" />
                 <span>
                   <b>{r.name}</b>
-                  <small>{r.building} · {r.floor || 'Floor not set'}</small>
+                  <small>{r.building} · {r.floor || 'Deck not set'}</small>
                   <em>{data.photoCounts[r.id] || 0} photos · {data.findings.filter(f => f.roomId === r.id && !['resolved', 'dismissed'].includes(f.status)).length} open items</em>
                 </span>
                 <ChevronRight size={14} className="muted" />
@@ -695,17 +695,17 @@ export default function SafetyDashboard({
           )}
 
           <button className="secondary add-space" onClick={() => setNewRoom(true)}>
-            <Plus size={14} /> Add room / area
+            <Plus size={14} /> Add Habitat Module
           </button>
 
           {onOpenScanner && (
             <button className="text-button" style={{ marginTop: '14px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={onOpenScanner}>
-              <Layers size={13} /> Model in 2D Hazard Scanner →
+              <Layers size={13} /> Model in 2D Clearance Scanner →
             </button>
           )}
 
           <p className="room-group-note">
-            Room inspection checklist. Photos do not uncover hidden structural or concealed wiring hazards.
+            Habitat module checklist. Photos do not uncover hidden structural or concealed wiring hazards.
           </p>
         </aside>
 
@@ -713,17 +713,17 @@ export default function SafetyDashboard({
           {!selected ? (
             <div className="empty-state">
               <Camera size={38} />
-              <h2>Check your rooms for fire hazards.</h2>
-              <p>Select a space on the left or add a new room to upload photos of appliances, cords, heaters, and doors for AI inspection.</p>
+              <h2>Audit your habitat modules for fire hazards.</h2>
+              <p>Select a module on the left or add a new space to upload photos of avionics racks, umbilical cables, thermal units, and airlocks for AI inspection.</p>
               <button className="primary" onClick={() => setNewRoom(true)}>
-                Add your first room <ArrowRight size={14} />
+                Add your first module <ArrowRight size={14} />
               </button>
             </div>
           ) : (
             <>
               <div className="survey-mobile-room-banner">
                 <button className="quiet survey-back-btn" onClick={() => setRoomId('')}>
-                  ← All spaces
+                  ← All modules
                 </button>
                 <span className="survey-mobile-room-title">{selected.name}</span>
               </div>
@@ -771,7 +771,7 @@ export default function SafetyDashboard({
                   {photos.length < 4 && (
                     <button className="photo-placeholder" onClick={() => fileRef.current?.click()} disabled={busy}>
                       <ImagePlus size={24} />
-                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Add room photo</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Add module photo</span>
                       <small>JPEG, PNG or WebP</small>
                     </button>
                   )}
@@ -785,10 +785,9 @@ export default function SafetyDashboard({
                     <ImagePlus size={14} /> {busy ? 'Saving…' : 'Upload photos'}
                   </button>
                   <button className="quiet" onClick={handleTakePhotoClick} disabled={busy || photos.length >= 4}>
-                    <Camera size={14} /> Take photo
+                    <Camera size={14} /> Capture photo
                   </button>
                 </div>
-                <small className="muted" style={{ display: 'block', marginTop: '10px' }}>Photos are stored privately on this computer.</small>
               </section>
 
               <section className="panel ai-card">
@@ -800,7 +799,7 @@ export default function SafetyDashboard({
                 </div>
                 <div className="ai-status">
                   <i className={ai?.configured ? 'ready' : ''} />
-                  <span>{ai ? `${ai.provider === 'gemini' ? 'Google Gemini Flash' : ai.provider === 'deepseek' ? 'DeepSeek Cloud AI' : ai.provider === 'ollama' ? 'Ollama Local AI' : ai.provider === 'openai' ? 'OpenAI Vision' : 'Disabled'} · ${ai.model}` : 'Checking configuration…'}</span>
+                  <span>{ai ? `${ai.provider === 'gemini' ? 'AI Cloud Model' : ai.provider === 'deepseek' ? 'DeepSeek Cloud AI' : ai.provider === 'ollama' ? 'Ollama Local AI' : ai.provider === 'openai' ? 'OpenAI Vision' : 'Disabled'} · ${ai.model}` : 'Checking configuration…'}</span>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{ai?.message || 'Checking AI readiness.'}</p>
 
@@ -816,7 +815,7 @@ export default function SafetyDashboard({
                 {ai?.external && (
                   <label className="consent">
                     <input type="checkbox" checked={cloudConsent} onChange={e => setCloudConsent(e.target.checked)} />
-                    Send this room’s photos to {ai.provider === 'gemini' ? 'Google Gemini' : ai.provider === 'deepseek' ? 'DeepSeek' : 'OpenAI'} for analysis.
+                    Send this module’s photos to {ai.provider === 'gemini' ? 'the cloud AI model' : ai.provider === 'deepseek' ? 'DeepSeek' : 'OpenAI'} for analysis.
                   </label>
                 )}
 
@@ -829,7 +828,7 @@ export default function SafetyDashboard({
                   </button>
                 </div>
                 <p className="ai-boundary">
-                  AI flags visible spatial concerns (e.g. heaters near curtains, overloaded sockets) to review. It cannot verify hidden wiring or replace certified inspection.
+                  AI flags visible spatial concerns (e.g. thermal units near MLI insulation, chained jumper cords) to review. It cannot verify hidden wiring or replace certified flight inspection.
                 </p>
               </section>
 
@@ -924,7 +923,7 @@ export default function SafetyDashboard({
                   <span className="tag">{findings.length} item{findings.length === 1 ? '' : 's'}</span>
                 </div>
                 {!findings.length ? (
-                  <p style={{ fontSize: '13px' }}>No fire hazards or concerns recorded in this room. Keep spaces clear of combustibles.</p>
+                  <p style={{ fontSize: '13px' }}>No fire hazards or clearance violations recorded in this module. Maintain certified equipment and MLI standoff buffers.</p>
                 ) : (
                   findings.map(f => (
                     <article className="finding" key={f.id}>
@@ -1038,24 +1037,24 @@ export default function SafetyDashboard({
 
       <div className="guard-endnote">
         <FileSearch size={16} className="shrink-0" />
-        <span>Ensure certified smoke alarms and fire extinguishers are installed and maintained. Ember provides supplemental visual hazard screening and plain-English recommendations.</span>
+        <span>Ensure certified spacecraft ECLSS automated fire detection and suppression subsystems are operational. Ember provides supplemental visual hazard screening and spaceflight compliance recommendations.</span>
       </div>
 
       {newRoom && (
-        <Modal title="Document a habitat, rover, or laboratory" close={() => setNewRoom(false)}>
-          <p>Group crew spaces under a mission, vehicle, or facility complex.</p>
+        <Modal title="Document a habitat, rover, or laboratory module" close={() => setNewRoom(false)}>
+          <p>Group pressurized crew spaces under a mission, vehicle, or facility complex.</p>
           <form onSubmit={createRoom} className="guard-form">
             <label>Mission / Facility name<input name="building" required maxLength={80} defaultValue={building === 'all' ? 'Artemis Surface Fleet' : building} placeholder="Artemis Surface Fleet, ISS, Lunar Gateway…" /></label>
             <div className="form-row">
               <label>Space Category<select name="kind"><option value="other">Spacecraft / Rover / Habitat</option><option value="commercial">Science / Payload Module</option><option value="home">Crew Quarters / Hab</option></select></label>
               <label>Deck / Level<input name="floor" maxLength={40} placeholder="Mobile Cabin, Node 2, Deck 1…" /></label>
             </div>
-            <label>Space name<input name="name" required maxLength={80} placeholder="Pressurized Rover Cockpit, Destiny Science Lab…" /></label>
+            <label>Module name<input name="name" required maxLength={80} placeholder="Pressurized Rover Cockpit, Destiny Science Lab…" /></label>
             <label>Adjacent compartments (optional)<input name="adjacent" maxLength={200} placeholder="Rear Suitport, Node 2 Forward, Airlock…" /></label>
             <label>Notes<textarea name="notes" maxLength={1000} placeholder="Atmospheric pressure, O₂ %, lithium equipment, heat sources…" /></label>
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={() => setNewRoom(false)}>Cancel</button>
-              <button className="primary" disabled={busy}>Add space</button>
+              <button className="primary" disabled={busy}>Add module</button>
             </div>
           </form>
         </Modal>
@@ -1071,7 +1070,7 @@ export default function SafetyDashboard({
               <label>Priority<select name="priority"><option value="review">Review</option><option value="urgent_review">Prompt review</option></select></label>
               <label>Photo evidence<select name="photoId"><option value="">No photo linked</option>{photos.map(p => <option value={p.id} key={p.id}>{p.label}</option>)}</select></label>
             </div>
-            <label>Location in room<input name="location" required maxLength={200} placeholder="Near west wall, behind microwave" /></label>
+            <label>Location in module / rack<input name="location" required maxLength={200} placeholder="Avionics rack 3, port bulkhead, galley warmer..." /></label>
             <label>What you observed<textarea name="evidence" required maxLength={700} placeholder="Describe visible facts without inferring fire cause." /></label>
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={() => setManualOpen(false)}>Cancel</button>
@@ -1100,7 +1099,7 @@ export default function SafetyDashboard({
       {expandedPhoto && (
         <Modal title={expandedPhoto.label} close={() => setExpandedPhoto(null)}>
           <img className="large-room-photo" src={expandedPhoto.dataUrl} alt={expandedPhoto.label} />
-          <p className="muted" style={{ fontSize: '12px' }}>Image evidence only. No hidden conditions are inferred.</p>
+          <p className="muted" style={{ fontSize: '12px' }}>Visual flight evidence only. Concealed conditions require physical inspection.</p>
         </Modal>
       )}
 
@@ -1112,7 +1111,7 @@ export default function SafetyDashboard({
             await api('photos', 'POST', { roomId: selected.id, label, dataUrl });
             await loadPhotos(selected.id);
             await reload();
-            notify('Photo captured and saved locally.');
+            notify('Photo captured and saved.');
           }}
           onClose={() => setCameraOpen(false)}
           notify={notify}

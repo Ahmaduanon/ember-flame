@@ -399,10 +399,10 @@ export const PSI_INVESTIGATIONS: PsiInvestigation[] = [
     targetHabitats: ['spacecraft', 'station', 'lunar'],
     relevanceScore: 99,
     flammabilityMetrics: {
-      loi: 14.5,
-      quenchDiameterMm: 16.0,
+      loi: 14.2,
+      quenchDiameterMm: 3.2,
       radiationFraction: 0.28,
-      flameSpreadRate: '0.8 - 2.5 mm/s (depends on forced air drift)',
+      flameSpreadRate: '0.4 - 1.8 mm/s (depends on forced air drift)',
       extinctionStrainRate: '15.2 s⁻¹',
       coolFlameObserved: false
     },
@@ -512,7 +512,7 @@ export const PSI_INVESTIGATIONS: PsiInvestigation[] = [
     id: 'psi-s-flame',
     acronym: 'S-Flame',
     title: 'Structure and Response of Spherical Diffusion Flames',
-    facility: 'Zero-G Drop Tower (5.18s) & ISS CIR',
+    facility: 'ISS CIR & 2.2-Second Drop Tower',
     sponsor: 'NASA Glenn Research Center / University of Southern California',
     fuel: 'methane',
     regime: 'microgravity',
