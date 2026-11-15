@@ -27,8 +27,14 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
     document.documentElement.style.colorScheme = 'dark';
-    fetch('/api/health').then(r => r.json()).then(j => setPub(j.mode === 'public')).catch(() => {});
-    fetch('/api/auth/me').then(r => { if (r.ok) location.hash = '#app'; }).catch(() => {});
+    fetch('/api/health')
+      .then(r => (r.ok && r.headers.get('content-type')?.includes('application/json') ? r.json() : null))
+      .then(j => { if (j) setPub(j.mode === 'public'); })
+      .catch(() => {});
+    fetch('/api/auth/me')
+      .then(r => (r.ok && r.headers.get('content-type')?.includes('application/json') ? r.json() : null))
+      .then(j => { if (j?.user) location.hash = '#app'; })
+      .catch(() => {});
   }, []);
 
   async function submit(e: FormEvent) {
@@ -152,8 +158,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
     let live = true;
     const check = () => fetch('/api/auth/me').then(async r => {
       if (!live) return;
-      if (r.ok) {
-        setUser((await r.json()).user);
+      if (r.ok && r.headers.get('content-type')?.includes('application/json')) {
+        const j = await r.json().catch(() => null);
+        if (j?.user) { setUser(j.user); return; }
       } else {
         const demo = typeof window !== 'undefined' ? localStorage.getItem('ember_guest_session') : null;
         if (demo) {

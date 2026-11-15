@@ -298,7 +298,7 @@ export default function Lab() {
     setLoadError('');
     try {
       const r = await fetch('/api/runs');
-      if (!r.ok) throw new Error((await r.json()).error || 'Cannot load experiments.');
+      if (!r.ok || !r.headers.get('content-type')?.includes('application/json')) throw new Error('Cannot load experiments.');
       setRuns(await r.json());
     } catch {
       const local = typeof window !== 'undefined' ? localStorage.getItem('ember_saved_runs') : null;

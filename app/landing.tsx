@@ -73,11 +73,13 @@ export default function Landing() {
 
   useEffect(() => {
     fetch('/api/health')
-      .then(r => r.json())
-      .then(j => setPub(j.mode === 'public'))
+      .then(r => (r.ok && r.headers.get('content-type')?.includes('application/json') ? r.json() : null))
+      .then(j => {
+        if (j) setPub(j.mode === 'public');
+      })
       .catch(() => {});
     fetch('/api/auth/me')
-      .then(r => (r.ok ? r.json() : null))
+      .then(r => (r.ok && r.headers.get('content-type')?.includes('application/json') ? r.json() : null))
       .then(j => {
         if (j?.user) setUser(j.user);
       })
